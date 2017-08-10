@@ -20,8 +20,9 @@
 ### Plan
 ###
 ### 1. Download and clean individual data (including collapsing and changing categories)
-### 2. Discriptive Statistics and correlations
-### 3. Connect individual level data to the respective census tract information
+### 2. Discriptive Statistics and correlations -  arranging the covariates
+### 3. Generating the time to event variables
+### 4. Connect individual level data to the respective census tract information
 ### ---------------------------------------------------------------------------------------- ###
 
 ## 0.1 - packages in use
@@ -64,7 +65,7 @@ tbl_df(INMO)
 ## Event/Censor variables
 
 table(INMO$tipob)
-# Emigración fuera de Andalucía     Fallecimiento     Fin de estudio 
+# Emigraci?n fuera de Andaluc?a     Fallecimiento     Fin de estudio 
 # 43672                             69613             624034 
 
 ##### 1.3. ---- Change variable names and categories for following analysis
@@ -75,10 +76,115 @@ cbind(names(INMO))
 colnames(INMO)[64] <- "SC"
 
 
-## ------------------------ ##
-## Create an event variable ##
+###### 2. Discriptive Statistics and correlations - arranging the covariates
+### ------------------------------------------------------------------------------------------ ###
+
+## --- ##
+## sex ##
+## --- ##
+
+INMO$sexo <- revalue(INMO$sexo, c("Hombre"="male","Mujer"="female"))
+
+## ---------------------------- ##
+## Estado civil - civil status  ##
+## ---------------------------- ##
+
+INMO$ecivil <- revalue(INMO$ecivil, c("Soltero/a"="single", "Casado/a"="married", "Viudo/a"="widowed", 
+                                                "Separado/a o divorciado/a"="divorced/sep"))
+
+## -------------------------- ##
+## Education - highest degree ##
+## -------------------------- ##
+
+INMO$estudios4 <- revalue(INMO$estudios4, c("No sabe leer o escribir"="Illiterate", "Incompletos y sin estudios"="Incomplete education", 
+                                                      "Primer y segundo grado"="Primary or secondary", "Superiores, tercer grado"="Higher secondary or tertiary"))
+
+### see the gender distribution by education - Andalusia 2001
+
+ed.sex.tbl <- table(INMO$estudios4,INMO$sexo)
+sex.crtbl <- round(100*prop.table(ed.sex.tbl,2), digits=2)
+sex.crtbl
+ # data shows more illitate females (9.48 to 11.64%); shares of highly educated and unfinished education (! 43% !)
+ # are the same for both sexes; men have relatively more often a primary or secondary degree (34.57 to 32.39%)
+
+## ---------------------------- ##
+## Housing regime - rent or buy ##
+## ---------------------------- ##
+
+table(INMO$tenen)
+
+INMO$tenen <- revalue(INMO$tenen, c("En propiedad"="Own house/apartment", "En alquiler"="Rents house/apartment", 
+                                              "Otras formas"="Other housing regime"))
+
+INMO <- within(INMO, tenen <- relevel(tenen, ref = "Own house/apartment"))
+
+
+## -------------------------------------- ##
+## vehic - number of owned motor vehicles ## 
+## -------------------------------------- ##
+
+table(INMO$vehic)
+
+INMO$vehic <- revalue(INMO$vehic, c("Uno"="One car", "Dos"="Two cars", 
+                                              "Tres o mÃ¡s"="Three or more cars", "Ninguno"="no car"))
+
+#### %%%%%%%%%% #### Test Area #### %%%%%%%%%%%% ####
+
+## -------------------------------------- ##
+## Social position mix of the three SES   ## 
+## -------------------------------------- ##
+
+# car education cross table
+car.ed.tbl <- table(INMO$vehic,INMO$estudios4)
+car.ed.ct <- round(100*prop.table(car.ed.tbl,2),digits=2)  # column percentage
+car.ed.ct
+
+# housing education crosstable
+hou.ed.tbl <- table(INMO$tenen,INMO$estudios4)
+hou.ed.ct <- round(100*prop.table(hou.ed.tbl,2),digits = 2) # column percentage
+hou.ed.ct
+
+### high SES is visible crossing the variables - even if owning the own house is very common throughout all categories
+
+
+
+# apartment size education crosstable
+siz.ed.tbl <- table(INMO$sut,INMO$estudios4)
+siz.ed.ct <- round(100*prop.table(siz.ed.tbl,2),digits = 2) # column percentage
+siz.ed.ct
+# heating education crosstable
+hea.ed.tbl <- table(INMO$calef,INMO$estudios4)
+hea.ed.ct <- round(100*prop.table(hea.ed.tbl,2), digits = 2)
+hea.ed.ct
+
+## SES variable
+
+# create groups 
+
+# - high socioeconomic status = middle or high education + owns house + owns 2 or more cars
+# has more than 100m2 + con Calefacion central
+# - middle SES = Incomplete or Primary or middle education + owns or rents house + has more than 50 m2 + 
+
+INMO$SES <- "Low"
+
+
+INMO <- INMO %>% mutate()
+
+
+
+#### %%%%%%%%% #### End Test Area #### %%%%%%%%% ####
+
+
+#### 3. Generating the time to event data 
+
+## --------------------------- ##
+## a) Create an event variable ##
 INMO$event <-  ifelse(INMO$tipob=="Fallecimiento",1,0)
 table(INMO$event)                                         # no event= 667706   event= 69613
+
+## ----------------------------- ##
+## a) Generate the time variable ##
+
 
 ## --------------------------------- ##
 ## Adjust the time-to-event variable ##   - for the survival object
