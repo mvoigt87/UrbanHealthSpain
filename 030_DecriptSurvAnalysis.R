@@ -5,13 +5,13 @@
 ### Plan
 ###
 ### 1. Descriptive Exploration
-### 2. Survival Analysis (Kaplan-Meier, simple PH model)
-### 3. Mixed Effects Cox Model
+### 2. Check for Spatial Auto-Correlation
+### 3. Survival Analysis (Kaplan-Meier, simple PH model)
+### 4. Mixed Effects Cox Model
 ### ---------------------------------------------------------------------------------------- ###
 
 # 0.1 packages 
-library(dplyr)
-library(tidyr)
+library(tidyverse)
 library(ggplot2)
 library(data.table)
 library(survival)
@@ -19,7 +19,9 @@ library(stargazer)
 library(memisc)
 library(broom)
 library(readxl)
-#library(plyr)
+library(sp)
+library(rgdal)
+
 
 # 0.2 load data set
 load("data/025_INDMOR-CT.RData")
@@ -134,11 +136,129 @@ INMO.SC %>% mutate(event = as.factor(ifelse(event==1,"dead","alive"))) %>% ggplo
   scale_y_continuous(name=" ") +
   theme_bw()
 
+### ----------------------------------------------------------------------------------------- ###
+###                         2. Check for Spatial Autocorrelation                              ###
+### ----------------------------------------------------------------------------------------- ###
+
+### Load spatial data - shape file
+
+ANDALUS.SC <- readOGR(dsn="C:/Users/y4956294S/Documents/Workshops and Conferences/Cambridge/Data/actual_Urb_Index/spatDat",
+                      layer = "da08_seccion_censal")
+
+# Population count by province
+pop.prov <- by(ANDALUS.SC$POBLACION, ANDALUS.SC$PROVINCIA, sum)
+
+# Extreme Values
+pop.prov[which.max(pop.prov)]  # Sevilla - 1.939.775
+pop.prov[which.min(pop.prov)]  # Huelva  - 519.596 
+
+# Map by population
+spplot(ANDALUS.SC,"POBLACION")
+
+# access the dataframe of the spatial data frame
+  
+d <- ANDALUS.SC@data
+
+    ### ---------------------------------------------------------------------------------------- ###
+      # Extract variables for spatial tests
+      # Urban indicator
+      # standardized single indicators
+      # number of events / SMR
+        load("data/015_CENSUSTRACT.RData")
+        load("data/SMRsc.RData")
+        
+        SMRsc <- SMRsc %>% dplyr::filter(sex=="Both") %>% mutate(SC=census.tract) %>% dplyr::select(SC,SMRe)
+        
+        # make the transformation to the final format
+        
+        SMRsc$SC <- as.character(as.factor(SMRsc$SC))
+        table(nchar(SMRsc$SC))
+
+        SPAT.SC <- SCCON %>% dplyr::select(SC, PCT_OCUPADOS, EDAD_MEDIA, PCT_AGRIC, ArtSurfA, Service.area.popacc, pop.den,
+                                           POPDEN.I.SD, ARTSURF.I.SD, ROADDEN.I.SD, SERAREA.I.SD, UI, UI.cat)
+       
+        table(nchar(SPAT.SC$SC))
+        # known error! - add the zero to the "SC"
+        
+        SPAT.SC$SC[nchar(SPAT.SC$SC)==9] <- paste0("0", SPAT.SC$SC[nchar(SPAT.SC$SC)==9])
+        
+        # test if the census tracts coincide
+        sum(SMRsc$SC %in% unique(SPAT.SC$SC)) # looks alright
+        
+        SPAT.SC$SC <- as.factor(SPAT.SC$SC)        
+        SPAT.SC <- SPAT.SC %>% left_join(SMRsc, by="SC")
+        
+        
+        ##### Needs to be doublechecked
+        # SPAT.IND <- INMO.SC %>% dplyr::select(SC,sexo,estudios4, tenen, NATIONAL, event)
+        # 
+        # SPAT.IND$SC <- as.factor(SPAT.IND$SC)
+        # 
+        # SPAT.IND <- SPAT.IND %>% group_by(SC) %>%
+        #             summarise_all(funs(sum), event=event)
+        
+        
+    ### ---------------------------------------------------------------------------------------- ###
+      
+sum(d$RT_CODIGO %in% unique(SPAT.SC$SC))
+# problem: more census sections because of administrative changes  
+# 5054 census tracts are the same
+
+# join what you get
+d <- d %>% mutate(SC = RT_CODIGO) %>%
+            left_join(SPAT.SC, by="SC")
+
+### Now the data goes back to the spatial object
+ANDALUS.SC@data <- d
+
+# Map by SMR
+spplot(ANDALUS.SC,"SMRe") ### Be careful with the missings
+
+###### %%%% For now listwise deletion of the census tracts we don´t have information for
+
+ANDALUS.SC <- subset(ANDALUS.SC, !is.na(UI))
+
+require(maptools)
+require(spdep)
+require(rgdal)
+
+writePolyShape(ANDALUS.SC, "data/ANDALUS_SC")
+### ---------------------------------------------------------------------------------------- ###
+
+### Spatial Autocorrelation
+
+## a) Adjacency Matrix from the shape file
+
+and.nb <- poly2nb(ANDALUS.SC)
+
+# row-standardised weight matrix - increased the weights of links from observation with few neighbours
+and.lw <- nb2listw(and.nb, style = "W", zero.policy=TRUE)
+
+#################
+### Moran's I ###
+#################
+
+## Spatial autocorrelation test by single variable
 
 
+  # Population
+  moran.test(ANDALUS.SC$POBLACION, and.lw, zero.policy=TRUE)
+  # SMR                                           ### Be careful with the missings
+  ANDALUS.SC$SMRe <- as.numeric(ANDALUS.SC$SMRe)
+  moran.test(ANDALUS.SC$SMRe, and.lw, zero.policy=TRUE)
+  # Median age
+  summary(ANDALUS.SC$EDAD_MEDIA)          
+  moran.test(ANDALUS.SC$EDAD_MEDIA, and.lw, zero.policy=TRUE)
+  # Urbanicity indicator
+  moran.test(ANDALUS.SC$UI, and.lw, zero.policy=TRUE)
+
+###  Lee’s statistic for comparison of two variables:
+  n <- nrow(ANDALUS.SC)
+  lee(ANDALUS.SC$UI, ANDALUS.SC$SMRe, and.lw, n, zero.policy=TRUE)$L
+  lee.test(ANDALUS.SC$UI, ANDALUS.SC$SMRe, and.lw, alt = "two.sided", zero.policy=TRUE)
 
 ### ---------------------------------------------------------------------------------------- ###
-###                          2. Survival Analysis (Kaplan-Meier, simple PH Model)            ###
+###                          3. Survival Analysis (Kaplan-Meier, simple PH Model)            ###
 ### ---------------------------------------------------------------------------------------- ###
 
 # Note: Using two time points accounts for left-truncation
@@ -261,5 +381,5 @@ KM1
   
   
 ### -------------------------------------------------------------------------------- ###
-###                          3. Mixed Effects Cox Model                              ###
+###                          4. Mixed Effects Cox Model                              ###
 ### -------------------------------------------------------------------------------- ###
