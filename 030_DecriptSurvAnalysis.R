@@ -256,11 +256,26 @@ and.lw <- nb2listw(and.nb, style = "W", zero.policy=TRUE)
   n <- nrow(ANDALUS.SC)
   lee(ANDALUS.SC$UI, ANDALUS.SC$SMRe, and.lw, n, zero.policy=TRUE)$L
   lee.test(ANDALUS.SC$UI, ANDALUS.SC$SMRe, and.lw, alt = "two.sided", zero.policy=TRUE)
+### Monte Carlo test
+  lee.mc(ANDALUS.SC$UI, ANDALUS.SC$SMRe, and.lw, alt = "less", nsim = 100)  
+  
 
 ### ---------------------------------------------------------------------------------------- ###
 ###                          3. Survival Analysis (Kaplan-Meier, simple PH Model)            ###
 ### ---------------------------------------------------------------------------------------- ###
 
+  
+  ### Change reference categories
+  
+  # Civil status
+  INMO.SC <- within(INMO.SC, ecivil <- relevel(ecivil, ref = "Married"))
+  # dependency variable
+  INMO.SC <- INMO.SC %>% mutate(dep = as.factor(ifelse(dependiente=="No","not dependent", "dependent")))
+  INMO.SC <- within(INMO.SC, dep <- relevel(dep, ref = "not dependent"))
+  # Housing ownership
+  INMO.SC <- within(INMO.SC, tenen <- relevel(tenen, ref = "Owns House/Apartment"))
+  
+  
 # Note: Using two time points accounts for left-truncation
 
 # -----------
@@ -276,9 +291,32 @@ KM1
     geom_step() +
     scale_x_continuous(name = "Age") +
     theme_bw()
+  
+# -----------
+# b) Survival estimates by sex
+  
+KM.female <- survfit(Surv(time = age.entry,
+                            time2 = age.exit,
+                            event = event) ~ 1, data = subset(INMO.SC,sexo=="female"), type="kaplan-meier")
+  
+KM.male <- survfit(Surv(time = age.entry,
+                                time2 = age.exit,
+                                event = event) ~ 1, data = subset(INMO.SC,sexo=="male"), type="kaplan-meier")  
+
+  KM.FEM <- tidy(KM.female) %>% dplyr::select(time,estimate) %>% mutate(sex = "female")
+  KM.MAL <- tidy(KM.male) %>% dplyr::select(time, estimate) %>% mutate(sex = "male")
+  
+  KM.SEX <- union(KM.FEM,KM.MAL)
+  
+  KM.SEX %>% ggplot(aes(x=time,y=estimate,color=sex)) +
+    geom_step() +
+    scale_colour_manual(values = c("orange", "darkgrey"), name="")     +
+    scale_x_continuous(name = "Age") +
+    scale_y_continuous(name = "Estimated Survival Probability") +
+    theme_bw()
 
 # -----------
-# b) Survival estimates by "urbanicity"
+# c) Survival estimates by "urbanicity"
   
   KM2.rural <- survfit(Surv(time = age.entry,
                             time2 = age.exit,
@@ -317,7 +355,7 @@ KM1
   ## there seems to be some higher mortality for urban dwellers until age 75 (minimal but proportional to the rest)
   
   # -----------
-  # b) Survival estimates by "urbanicity" and sex
+  # d) Survival estimates by "urbanicity" and sex
   
   # female - rural
   KM2.rural.f <- survfit(Surv(time = age.entry,
@@ -366,7 +404,8 @@ KM1
                 union(KM2.PU.M) %>% union(KM2.U.M)
   
   # delete: 
-  rm(KM2.rural.f,KM2.perirural.f,KM2.periurban.f,KM2.urban.f, KM2.rural.m,KM2.perirural.m,KM2.periurban.m,KM2.urban.m)
+  rm(KM2.rural.f,KM2.perirural.f,KM2.periurban.f,KM2.urban.f, KM2.rural.m,KM2.perirural.m,KM2.periurban.m,KM2.urban.m,
+     KM2.PR.F,KM2.PR.M,KM2.PR, KM2.PU.F, KM2.PU.M, KM2.PU, KM2.U.F, KM2.U.M, KM2.U, KM2.R.M, KM2.R.F, KM2.R)
   
   # plot
   KM.UI.SEX %>% ggplot(aes(x=time,y=estimate,color=UI)) +
@@ -383,3 +422,120 @@ KM1
 ### -------------------------------------------------------------------------------- ###
 ###                          4. Mixed Effects Cox Model                              ###
 ### -------------------------------------------------------------------------------- ###
+  
+library(coxme)  
+
+stem(table(INMO.SC$SC))  
+
+### Simple model without random effects (only "sex" as covariate)
+fit.1 <- coxph(Surv(time = age.entry,
+                    time2 = age.exit,
+                    event = event) ~ sexo, data=INMO.SC)
+
+### Simple model WITH random effects (only "sex" as covariate)
+   
+  # Logic - intercept (effect) per Census Tract (group)
+
+fit.2 <- coxme(Surv(time = age.entry,
+                    time2 = age.exit,
+                    event = event) ~ sexo + (1|SC), data=INMO.SC)
+
+print(fit.2)
+### Compare the log-partial likelihood to the model without random effects
+
+summary(fit.1)
+
+
+anova(fit.1, fit.2)
+
+## compare AICs
+AIC(fit.1)
+AIC(fit.2)
+# difference of AICs in favor of the first model
+
+  ### --------------------------------------------------------------------------------------------------------------------- ###
+  ### --------------------------------------------------------------------------------------------------------------------- ###
+  ### --------------------------------------------------------------------------------------------------------------------- ###
+  ### Summary graphs (code by Thernau 2017)
+
+  # event counts by SC 
+  nevents <- with(INMO.SC, tapply(event, SC, sum, na.rm=T))
+  # person years by SC
+  per.years <- with(INMO.SC, tapply(age.exit - 12, SC, sum, na.rm=T))
+  count <- with(INMO.SC, tapply(event, SC, 
+                              (function(x) sum(!is.na(x)))))
+
+  ### Plotting events per census tracts by estimated risks (random effects model)
+  plot(nevents, exp(ranef(fit.2)[[1]]), log='y',
+     xlab="Number of events per Census Tract",
+     ylab="Estimated risk by CT")
+  abline(h=1, lty=2)
+  ### --------------------------------------------------------------------------------------------------------------------- ###
+  ### --------------------------------------------------------------------------------------------------------------------- ###
+  ### --------------------------------------------------------------------------------------------------------------------- ###
+
+### Testing models
+
+  ## Model 1 - sex, dependency, civil status
+  Mod.1 <- coxph(Surv(time = age.entry,
+                      time2 = age.exit,
+                      event = event) ~ sexo + dependiente + ecivil, data = INMO.SC)
+  
+  Mod.1.ran <- coxme(Surv(time = age.entry,
+                      time2 = age.exit,
+                      event = event) ~ sexo + dependiente + ecivil + (1|SC), data = INMO.SC)
+  
+  ## Compare Model Fit
+  AIC(Mod.1.ran)-AIC(Mod.1)
+  
+  ## Model 2 - Model 1 + education, car ownership, housing ownership
+  
+  Mod.2 <- coxph(Surv(time = age.entry,
+                      time2 = age.exit,
+                      event = event) ~ sexo + dep + ecivil + estudios4 + tenen + vehic,
+                      data = INMO.SC)
+  summary(Mod.2)
+  
+  AIC(Mod.2)-AIC(Mod.1) # Model 2 fits the data much better than Model 1 (difference 1370.697)
+  
+  Mod.2.ran <- coxme(Surv(time = age.entry,
+                      time2 = age.exit,
+                      event = event) ~ sexo + dep + ecivil + estudios4 + tenen + vehic + (1|SC),
+                 data = INMO.SC)
+  
+  AIC(Mod.2.ran)-AIC(Mod.2) # Model with random effects is more likely to minimize the information loss
+  
+  
+  ## Model 3 - Model 2 + nationality, birth cohort, occupation
+
+  Mod.3 <- coxph(Surv(time = age.entry,
+                      time2 = age.exit,
+                      event = event) ~ sexo + dep + ecivil + estudios4 + tenen + vehic + OCCUP2 + fnac + NATIONAL,
+                 data = INMO.SC)
+  summary(Mod.3)  
+  
+  AIC(Mod.3)-AIC(Mod.2) # Model 3 fits the data much better than Model 2 (difference 879.484)
+  
+  
+  Mod.3.ran <- coxme(Surv(time = age.entry,
+                          time2 = age.exit,
+                          event = event) ~ sexo + dep + ecivil + estudios4 + tenen + vehic + OCCUP2 + fnac + NATIONAL + (1|SC),
+                     data = INMO.SC)
+  
+  AIC(Mod.3.ran)-AIC(Mod.3) # Model with random effects is more likely to minimize the information loss
+  
+  
+  ##################################~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~######################################
+  ##################################~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~######################################
+  ##################################~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~######################################
+  ##################################~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~######################################
+  ##################################~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~######################################
+  ##################################~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~######################################
+  
+  
+  Mod.x.ran <- coxme(Surv(time = age.entry,
+                          time2 = age.exit,
+                          event = event) ~ sexo + dependiente + ecivil + (1|SC) + (1|UI.cat), data = INMO.SC)
+  
+  AIC(Mod.x.ran) - AIC(Mod.1.ran)
+  
