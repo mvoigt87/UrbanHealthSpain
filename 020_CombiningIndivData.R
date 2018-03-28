@@ -245,7 +245,7 @@ INMO <- within(INMO, OCCUP2 <- relevel(OCCUP2, ref = "Manual Work"))
 
 
 #### ---------- Upload and connect the Spatial Urban Index Data ---------------- ####
-load("data/015_CENSUSTRACT.RData")
+load("data/015_ContextAndUI.RData")
 
 #### Testing which census tracts in the individual data set are covered urban indicators (Frans solution)
 sum(unique(INMO$SC) %in% SCCON$SC)   # 5381
@@ -271,7 +271,7 @@ INMO.SC <- INMO %>% left_join(SCCON, by="SC")
                                        Hospitals, Universities, Supermarkets, Open.Markets, ArtSurfA,
                                        Road.density, total.area.m2, total.area.km2, Service.area.popacc,
                                        pop.den, road.den, POPDEN.I.SD, ARTSURF.I.SD, ROADDEN.I.SD, SERAREA.I.SD,
-                                       UI, UI.cat)
+                                       UI, UI.cat, UI.N, UI.logit, DI, DI.N)
 
 #### Create final working data set
   

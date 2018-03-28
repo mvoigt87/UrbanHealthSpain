@@ -162,7 +162,7 @@ saveRDS(SCCON,file="010_SCCONTEXT.RData")
  # concentration at around 0 and 100 (large rural secciones have mainly natural surface, whereas small urban 
  # census tract have a very high share of artificial surface = speaks for a binary classification (?))
  
- hist(SCCON$Portion.popacc)
+ hist(SCCON$Portion.popacc, breaks = 30)
  summary(SCCON$Portion.popacc)
  
  # C. Road density
@@ -211,6 +211,10 @@ SCCON <- SCCON %>%
   ## 2.Identify correlations
   CS <- cor(SCCON.fac)
   
+  ### Crohnbachs alpha as reliability coefficient (=91%)
+  alpha(CS)
+  
+  
   ## 3. apply explanatory factor analysis
   fit <- factanal(SCCON.fac, 1 , rotation="varimax")
   
@@ -227,7 +231,7 @@ SCCON <- SCCON %>%
   
   SCCON <- SCCON %>% mutate(UI = (POPDEN.I*0.97+ARTSURF.I*0.82+ROADDEN.I*0.90+SERAREA.I*0.65)/4)
   
-  # and a categorical urbanicity variable - for easier interpretation - by quartiles
+  # and a categorical urbanicity variable - for easier interpretation - by quartiles (for now)
   
   SCCON$UI.cat <- 0
   SCCON$UI.cat[SCCON$UI<=1.24] <- 1
@@ -245,22 +249,119 @@ SCCON <- SCCON %>%
   
   #    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
   #   0.835   1.240   2.120   2.087   2.872   3.340 
+
+  # Normalize the values
+  
+  # Standard Deviation & Mean
+  SD <- sd(SCCON$UI)  # 0.8348496
+  M <- mean(SCCON$UI) # 2.0872672
+  
+  SCCON <- SCCON %>% mutate(UI.N = (UI-M)/SD)
+  
   
   hist(SCCON$UI, breaks = 30)
-
+  hist(SCCON$UI.N, breaks = 30)
+  
+  # cumulative distribution
+  P = ecdf(SCCON$UI.N) 
+  plot(P)
+  
+  
+  
+     ### Some transformations - playing around
+  
+      SCCON <- SCCON %>% mutate(UI.p = UI / max(UI)) %>% 
+      # logit transformation
+      mutate(UI.logit = log(UI.p)) %>% 
+      mutate(UI.exp = exp(UI))
+  
+      hist(SCCON$UI.logit)
+      hist(SCCON$UI.exp)
+  
   ## See how the data is distributed! (source: https://goo.gl/zi7lwv )
-  x <- SCCON$UI
+  x <- SCCON$UI.N
+ # x <- SCCON$UI.log
+ # x <- SCCON$UI.logit
   descdist(x, discrete = FALSE) ### as observed earlier, the Index is uniformily distributed
   fit.norm <- fitdist(x, "unif")      ## has a the best fit
   plot(fit.norm)
   
-  ### Crohnbachs alpha as reliability coefficient (=91%)
-  alpha(CS)
+
   
   
   ##### --------------------------------------------------------------------------------------------------- #####
+  ##### --------------------------------------------------------------------------------------------------- #####
+  ##### --------------------------------------------------------------------------------------------------- #####
+  ##### --------------------------------------------------------------------------------------------------- #####
   
-  ##### save data set with UI indicator and transformed variables
+  ### Deprivation Index
+  ### steps: 
+  ### a) select variables (scaled indicators for Delinquency, Noise, Contamination, Cleaness, Unemployment)
+  ### b) use standardized variables
+  ### c) run maximum likelihood factor analysis to obtain the weights for the indicator
+  ### d) combine the variables with weights in an indicator
+  ### e) test the index
   
-  save(SCCON,file='data/015_ContextAndUI.Rdata')
+  SCCON.cor.depr <- SCCON %>% dplyr::select(SC,PERS_VIV,PCT_CASADOS, PCT_TENENPROP, PCT_2VIV, PCT_2VEHIC, 
+                                       PCT_EDIFMAL, PCT_TNUC1, MED_HIJOS, EDAD_MEDIA, PCT_AGRIC, IP_DELINC,
+                                       IP_ASEO, IP_RUIDOS, IP_CONTAM ,IP_LIMPIEZA ,IP_HOGMONOP, IP_EDBAJO_TOTAL,
+                                       IP_TRABMAN, NEDIFIC, ArtSurfA, pop.den)
+  
+  cor.sccon <- cor(SCCON.cor.depr)
+  corrplot(cor.sccon, type="upper", order = "FPC", tl.col = 'black', tl.cex = .75)
+  
+  ### c) Factoranalysis
+  
+  ## find latent factors within the selected indicators
+  
+  ## soruce: http://www.statmethods.net/advstats/factor.html
+  
+  SCCON.fac.2 <- SCCON %>% dplyr::select(PCT_TENENPROP,IP_RUIDOS, IP_CONTAM, IP_LIMPIEZA, IP_DELINC,IP_HOGMONOP) %>% 
+    # Tienen prop change for direction
+    mutate(PCT_NOPROP = 100-PCT_TENENPROP) %>% dplyr::select(-PCT_TENENPROP) %>% dplyr::select(-PCT_NOPROP)
+    
+  
+  ## 2.Identify correlations
+  CS.2 <- cor(SCCON.fac.2)
+  ### Crohnbachs alpha as reliability coefficient (=91%)
+  alpha(CS.2, check.keys = TRUE)
+  
+  
+  ## 3. apply explanatory factor analysis
+  fit <- factanal(SCCON.fac.2, 1 , rotation="varimax")
+  
+  print(fit, digits=2, cutoff=.3, sort=TRUE)
+  
+  ### d) Create Deprivation Indicator
+  
+  SCCON <- SCCON %>% mutate(DI = (IP_RUIDOS*0.85 + IP_CONTAM*0.73 + IP_LIMPIEZA*0.63 + IP_DELINC*0.77 + IP_HOGMONOP*0.58)/5)
+  
+  ### e) test the urban indicator
+  summary(SCCON$DI)
+  
+  #    Min. 1st Qu.  Median     Mean  3rd Qu.     Max. 
+  #  0.406  11.030   17.650   18.090   24.430   59.980  
+  
+  # Normalize the values
+  
+  # Standard Deviation & Mean
+  SD <- sd(SCCON$DI)  # 9.6884
+  M <- mean(SCCON$DI) # 18.0926
+  
+  SCCON <- SCCON %>% mutate(DI.N = (DI-M)/SD)
+
+  hist(SCCON$DI.N)
+  ## See how the data is distributed! (source: https://goo.gl/zi7lwv )
+  x <- SCCON$DI.N
+  descdist(x, discrete = FALSE)       ## as observed earlier, the Deprivation Index is normaly distributed
+  fit.norm <- fitdist(x, "norm")      ## has a the best fit
+  plot(fit.norm)
+  par(mfrow=c(1,1))
+  
+###############################################################
+###############################################################
+##### save data set with UI indicator and transformed variables
+###############################################################  
+
+save(SCCON,file='data/015_ContextAndUI.Rdata')
   

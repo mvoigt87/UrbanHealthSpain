@@ -105,12 +105,20 @@ round(prop.table(table(INMO.SC$event,INMO.SC$UI.cat),2),2)
 chisq.test(INMO.SC$event,INMO.SC$UI, simulate.p.value = FALSE)
   # Both extremes seem to have higher mortality - but it need to be checked for age and population structure
 
+# Deprivation Indicator
+
+INMO.SC %>% mutate(event = as.factor(ifelse(event==1,"dead","alive"))) %>% ggplot(aes(DI.N, fill=event)) +  
+  geom_histogram(binwidth = 0.1) + 
+  scale_fill_discrete(name=" ") + 
+  scale_x_continuous(name=" ") +
+  scale_y_continuous(name=" ") +
+  theme_bw()
+
+
+
+### Further Test
 # green areas
 round(prop.table(table(INMO.SC$event,INMO.SC$pverde),2),2)
-# contaminacion
-round(prop.table(table(INMO.SC$event,INMO.SC$pconta),2),2)
-# delinquency
-round(prop.table(table(INMO.SC$event,INMO.SC$pdelin),2),2)
 
 # median age
 INMO.SC %>% mutate(event = as.factor(ifelse(event==1,"dead","alive"))) %>% ggplot(aes(EDAD_MEDIA, fill=event)) +  
@@ -148,12 +156,16 @@ ANDALUS.SC <- readOGR(dsn="C:/Users/y4956294S/Documents/Workshops and Conference
 # Population count by province
 pop.prov <- by(ANDALUS.SC$POBLACION, ANDALUS.SC$PROVINCIA, sum)
 
-# Extreme Values
+# Extreme Values Provincial Level
 pop.prov[which.max(pop.prov)]  # Sevilla - 1.939.775
 pop.prov[which.min(pop.prov)]  # Huelva  - 519.596 
 
+# Extreme Values Municipality Level
+pop.mun <- by(ANDALUS.SC$POBLACION, ANDALUS.SC$MUNICIPIO, sum)
+pop.mun[which.max(pop.mun)]  # Sevilla -  690.566
+
 # Map by population
-spplot(ANDALUS.SC,"POBLACION")
+# spplot(ANDALUS.SC,"POBLACION")
 
 # access the dataframe of the spatial data frame
   
@@ -164,7 +176,7 @@ d <- ANDALUS.SC@data
       # Urban indicator
       # standardized single indicators
       # number of events / SMR
-        load("data/015_CENSUSTRACT.RData")
+        load("data/015_ContextAndUI.RData")
         load("data/SMRsc.RData")
         
         SMRsc <- SMRsc %>% dplyr::filter(sex=="Both") %>% mutate(SC=census.tract) %>% dplyr::select(SC,SMRe)
@@ -175,7 +187,8 @@ d <- ANDALUS.SC@data
         table(nchar(SMRsc$SC))
 
         SPAT.SC <- SCCON %>% dplyr::select(SC, PCT_OCUPADOS, EDAD_MEDIA, PCT_AGRIC, ArtSurfA, Service.area.popacc, pop.den,
-                                           POPDEN.I.SD, ARTSURF.I.SD, ROADDEN.I.SD, SERAREA.I.SD, UI, UI.cat)
+                                           POPDEN.I.SD, ARTSURF.I.SD, ROADDEN.I.SD, SERAREA.I.SD, UI, UI.cat, UI.N, UI.logit,
+                                           DI, DI.N)
        
         table(nchar(SPAT.SC$SC))
         # known error! - add the zero to the "SC"
@@ -213,6 +226,10 @@ ANDALUS.SC@data <- d
 
 # Map by SMR
 spplot(ANDALUS.SC,"SMRe") ### Be careful with the missings
+# Map by UI
+spplot(ANDALUS.SC,"UI.N") ### Be careful with the missings
+# Map by DI
+spplot(ANDALUS.SC,"DI.N") ### Be careful with the missings ----------------------- !!!
 
 ###### %%%% For now listwise deletion of the census tracts we don´t have information for
 
@@ -225,7 +242,33 @@ require(rgdal)
 writePolyShape(ANDALUS.SC, "data/ANDALUS_SC")
 ### ---------------------------------------------------------------------------------------- ###
 
-### Spatial Autocorrelation
+  # Check degree of urbanization by zooming into Seville (Province)
+
+  SEV <- subset(ANDALUS.SC,
+              PROVINCIA %in%  c("Sevilla")
+  )
+
+  spplot(SEV, "UI.N")
+
+  # Municipality level (biggest municipality - population-wise)
+  MAL <- subset(ANDALUS.SC, MUNICIPIO %in% c("MÃ¡laga"))
+  spplot(MAL, "UI.N")
+  spplot(MAL,"DI.N")
+  
+  # Municipality 2 - Sevilla
+  SEV.2 <- subset(ANDALUS.SC, MUNICIPIO %in% c("Sevilla"))
+  SEV.UI.plot <- spplot(SEV.2, "UI.N")
+  SEV.DI.plot <- spplot(SEV.2,"DI.N")
+  
+  library("gridExtra")
+  library("lattice")
+  
+  grid.arrange(SEV.UI.plot, SEV.DI.plot, ncol=2, nrow=1)
+  
+  ######################################################### UI - seems to measure urbanicity quite well
+  
+  
+### Test for Spatial Autocorrelation
 
 ## a) Adjacency Matrix from the shape file
 
@@ -246,19 +289,20 @@ and.lw <- nb2listw(and.nb, style = "W", zero.policy=TRUE)
   # SMR                                           ### Be careful with the missings
   ANDALUS.SC$SMRe <- as.numeric(ANDALUS.SC$SMRe)
   moran.test(ANDALUS.SC$SMRe, and.lw, zero.policy=TRUE)
-  # Median age
-  summary(ANDALUS.SC$EDAD_MEDIA)          
-  moran.test(ANDALUS.SC$EDAD_MEDIA, and.lw, zero.policy=TRUE)
   # Urbanicity indicator
-  moran.test(ANDALUS.SC$UI, and.lw, zero.policy=TRUE)
-
+  moran.test(ANDALUS.SC$UI.N, and.lw, zero.policy=TRUE)
+  # Deprivation indicator
+  moran.test(ANDALUS.SC$DI.N, and.lw, zero.policy=TRUE)
+  
 ###  Lee’s statistic for comparison of two variables:
   n <- nrow(ANDALUS.SC)
   lee(ANDALUS.SC$UI, ANDALUS.SC$SMRe, and.lw, n, zero.policy=TRUE)$L
-  lee.test(ANDALUS.SC$UI, ANDALUS.SC$SMRe, and.lw, alt = "two.sided", zero.policy=TRUE)
-### Monte Carlo test
-  lee.mc(ANDALUS.SC$UI, ANDALUS.SC$SMRe, and.lw, alt = "less", nsim = 100)  
+  # Urban - Mortality Spatial
+  lee.test(ANDALUS.SC$UI.N, ANDALUS.SC$SMRe, and.lw, alt = "two.sided", zero.policy=TRUE)
+  # Deprivation - Mortality Spatial
+  lee.test(ANDALUS.SC$DI.N, ANDALUS.SC$SMRe, and.lw, alt = "two.sided", zero.policy=TRUE)
   
+
 
 ### ---------------------------------------------------------------------------------------- ###
 ###                          3. Survival Analysis (Kaplan-Meier, simple PH Model)            ###
@@ -266,7 +310,9 @@ and.lw <- nb2listw(and.nb, style = "W", zero.policy=TRUE)
 
   
   ### Change reference categories
-  
+
+  # sex
+  INMO.SC <- within(INMO.SC, sexo <- relevel(sexo, ref = "female"))  
   # Civil status
   INMO.SC <- within(INMO.SC, ecivil <- relevel(ecivil, ref = "Married"))
   # dependency variable
@@ -427,18 +473,18 @@ library(coxme)
 
 stem(table(INMO.SC$SC))  
 
-### Simple model without random effects (only "sex" as covariate)
+### Simple model without random effects (only "Urbanicity" as covariate)
 fit.1 <- coxph(Surv(time = age.entry,
                     time2 = age.exit,
-                    event = event) ~ sexo, data=INMO.SC)
+                    event = event) ~ UI.N, data=INMO.SC)
 
-### Simple model WITH random effects (only "sex" as covariate)
+### Simple model WITH random effects (only "Urbanicity" as covariate)
    
   # Logic - intercept (effect) per Census Tract (group)
 
 fit.2 <- coxme(Surv(time = age.entry,
                     time2 = age.exit,
-                    event = event) ~ sexo + (1|SC), data=INMO.SC)
+                    event = event) ~ UI.N + (1|SC), data=INMO.SC)
 
 print(fit.2)
 ### Compare the log-partial likelihood to the model without random effects
@@ -449,9 +495,8 @@ summary(fit.1)
 anova(fit.1, fit.2)
 
 ## compare AICs
-AIC(fit.1)
-AIC(fit.2)
-# difference of AICs in favor of the first model
+AIC(fit.2) - AIC(fit.1)
+# difference of AICs in favor of the model which accounts spatial
 
   ### --------------------------------------------------------------------------------------------------------------------- ###
   ### --------------------------------------------------------------------------------------------------------------------- ###
@@ -474,25 +519,28 @@ AIC(fit.2)
   ### --------------------------------------------------------------------------------------------------------------------- ###
   ### --------------------------------------------------------------------------------------------------------------------- ###
 
-### Testing models
+######################
+### Testing models ###
+######################
 
-  ## Model 1 - sex, dependency, civil status
+  
+### Model 1 - sex, dependency, civil status, cohort
   Mod.1 <- coxph(Surv(time = age.entry,
                       time2 = age.exit,
-                      event = event) ~ sexo + dependiente + ecivil, data = INMO.SC)
+                      event = event) ~ sexo + dependiente + ecivil + fnac, data = INMO.SC)
   
   Mod.1.ran <- coxme(Surv(time = age.entry,
                       time2 = age.exit,
-                      event = event) ~ sexo + dependiente + ecivil + (1|SC), data = INMO.SC)
+                      event = event) ~ sexo + dependiente + ecivil + fnac + (1|SC), data = INMO.SC)
   
   ## Compare Model Fit
   AIC(Mod.1.ran)-AIC(Mod.1)
   
-  ## Model 2 - Model 1 + education, car ownership, housing ownership
+### Model 2 - Model 1 + education, car ownership, housing ownership
   
   Mod.2 <- coxph(Surv(time = age.entry,
                       time2 = age.exit,
-                      event = event) ~ sexo + dep + ecivil + estudios4 + tenen + vehic,
+                      event = event) ~ sexo + dep + ecivil + fnac + estudios4 + tenen + vehic,
                       data = INMO.SC)
   summary(Mod.2)
   
@@ -500,17 +548,17 @@ AIC(fit.2)
   
   Mod.2.ran <- coxme(Surv(time = age.entry,
                       time2 = age.exit,
-                      event = event) ~ sexo + dep + ecivil + estudios4 + tenen + vehic + (1|SC),
+                      event = event) ~ sexo + dep + ecivil + fnac + estudios4 + tenen + vehic + (1|SC),
                  data = INMO.SC)
   
   AIC(Mod.2.ran)-AIC(Mod.2) # Model with random effects is more likely to minimize the information loss
   
   
-  ## Model 3 - Model 2 + nationality, birth cohort, occupation
+### Model 3 - Model 2 + Urbanicity effects (UI.N)
 
   Mod.3 <- coxph(Surv(time = age.entry,
                       time2 = age.exit,
-                      event = event) ~ sexo + dep + ecivil + estudios4 + tenen + vehic + OCCUP2 + fnac + NATIONAL,
+                      event = event) ~ sexo + dep + ecivil + estudios4 + tenen + vehic + UI.N,
                  data = INMO.SC)
   summary(Mod.3)  
   
@@ -519,23 +567,32 @@ AIC(fit.2)
   
   Mod.3.ran <- coxme(Surv(time = age.entry,
                           time2 = age.exit,
-                          event = event) ~ sexo + dep + ecivil + estudios4 + tenen + vehic + OCCUP2 + fnac + NATIONAL + (1|SC),
+                          event = event) ~ sexo + dep + ecivil + estudios4 + tenen + vehic + OCCUP2 + fnac  + UI.N + (1|SC),
                      data = INMO.SC)
   
-  AIC(Mod.3.ran)-AIC(Mod.3) # Model with random effects is more likely to minimize the information loss
+  AIC(Mod.3.ran)-AIC(Mod.3) # Model with random effects is more likely to minimize the information loss (difference 888.4247)
+  
+### Model 4 - Model 3 + Area Deprivation (DI.N)
+  
+  Mod.4 <- coxph(Surv(time = age.entry,
+                      time2 = age.exit,
+                      event = event) ~ sexo + dep + ecivil + estudios4 + tenen + vehic + UI.N + DI.N,
+                 data = INMO.SC)
+  summary(Mod.4)  
+  
+  AIC(Mod.4)-AIC(Mod.3) # Model 4 fits the data much better than Model 3 (difference 75.80463)
   
   
-  ##################################~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~######################################
-  ##################################~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~######################################
-  ##################################~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~######################################
-  ##################################~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~######################################
-  ##################################~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~######################################
-  ##################################~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~######################################
-  
-  
-  Mod.x.ran <- coxme(Surv(time = age.entry,
+  Mod.4.ran <- coxme(Surv(time = age.entry,
                           time2 = age.exit,
-                          event = event) ~ sexo + dependiente + ecivil + (1|SC) + (1|UI.cat), data = INMO.SC)
+                          event = event) ~ sexo + dep + ecivil + estudios4 + tenen + vehic + fnac  + UI.N + DI.N + (1|SC),
+                     data = INMO.SC)
   
-  AIC(Mod.x.ran) - AIC(Mod.1.ran)
+  AIC(Mod.4.ran)-AIC(Mod.4) # Model with random effects is more likely to minimize the information loss (difference 865.8751)
+  
+  
+  AIC(Mod.4.ran) - AIC(Mod.3.ran) # just 53 difference
+  
+  
+
   
