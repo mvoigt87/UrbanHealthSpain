@@ -275,5 +275,5 @@ INMO.SC <- INMO %>% left_join(SCCON, by="SC")
 
 #### Create final working data set
   
-  save(INMO.SC, file = '025_INDMOR-CT.Rdata')
+  save(INMO.SC, file = 'data/025_INDMOR-CT.Rdata')
   
