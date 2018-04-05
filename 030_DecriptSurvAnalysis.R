@@ -6,8 +6,8 @@
 ###
 ### 1. Descriptive Exploration
 ### 2. Check for Spatial Auto-Correlation
-### 3. Survival Analysis (Kaplan-Meier, simple PH model)
-### 4. Mixed Effects Cox Model
+### 3. Survival Analysis (Kaplan-Meier, simple Cox PH model)
+### 4. Mixed Effects Cox Model + Model Comparison
 ### ---------------------------------------------------------------------------------------- ###
 
 # 0.1 packages 
@@ -334,7 +334,7 @@ and.lw <- nb2listw(and.nb, style = "W")
     # 1.725797e-01 
   
   ## Monte Carlo test
-  lee.mc(ANDALUS.SC$UI.N, ANDALUS.SC$SMRe, and.lw, alt = "less", nsim = 100)
+  lee.mc(ANDALUS.SC$UI.N, ANDALUS.SC$SMRe, and.lw, alt = "less", nsim = 999)
       #	Monte-Carlo simulation of Lee's L
       # data:  ANDALUS.SC$UI.N ,  ANDALUS.SC$SMRe 
       # weights: and.lw  
@@ -343,7 +343,7 @@ and.lw <- nb2listw(and.nb, style = "W")
       # statistic = 0.050019, observed rank = 101, p-value = 0.9901
       # alternative hypothesis: less
   
-  lee.mc(ANDALUS.SC$DI.N, ANDALUS.SC$SMRe, and.lw, alt = "less", nsim = 99)
+  lee.mc(ANDALUS.SC$DI.N, ANDALUS.SC$SMRe, and.lw, alt = "less", nsim = 999)
   
       # Monte-Carlo simulation of Lee's L
       # 
@@ -582,11 +582,11 @@ AIC(fit.2) - AIC(fit.1)
 ### Model 1 - sex, dependency, civil status, cohort
   Mod.1 <- coxph(Surv(time = age.entry,
                       time2 = age.exit,
-                      event = event) ~ sexo + dependiente + ecivil + fnac, data = INMO.SC)
+                      event = event) ~ sexo + dep + ecivil + fnac, data = INMO.SC)
   
   Mod.1.ran <- coxme(Surv(time = age.entry,
                       time2 = age.exit,
-                      event = event) ~ sexo + dependiente + ecivil + fnac + (1|SC), data = INMO.SC)
+                      event = event) ~ sexo + dep + ecivil + fnac + (1|SC), data = INMO.SC)
   
   ## Compare Model Fit
   AIC(Mod.1.ran)-AIC(Mod.1)
@@ -613,7 +613,7 @@ AIC(fit.2) - AIC(fit.1)
 
   Mod.3 <- coxph(Surv(time = age.entry,
                       time2 = age.exit,
-                      event = event) ~ sexo + dep + ecivil + estudios4 + tenen + vehic + UI.N,
+                      event = event) ~ sexo + dep + ecivil + fnac + estudios4 + tenen + vehic + UI.N,
                  data = INMO.SC)
   summary(Mod.3)  
   
@@ -622,7 +622,7 @@ AIC(fit.2) - AIC(fit.1)
   
   Mod.3.ran <- coxme(Surv(time = age.entry,
                           time2 = age.exit,
-                          event = event) ~ sexo + dep + ecivil + estudios4 + tenen + vehic + OCCUP2 + fnac  + UI.N + (1|SC),
+                          event = event) ~ sexo + dep + ecivil + fnac + estudios4 + tenen + vehic  + UI.N + (1|SC),
                      data = INMO.SC)
   
   AIC(Mod.3.ran)-AIC(Mod.3) # Model with random effects is more likely to minimize the information loss (difference 888.4247)
@@ -631,7 +631,7 @@ AIC(fit.2) - AIC(fit.1)
   
   Mod.4 <- coxph(Surv(time = age.entry,
                       time2 = age.exit,
-                      event = event) ~ sexo + dep + ecivil + estudios4 + tenen + vehic + UI.N + DI.N,
+                      event = event) ~ sexo + dep + ecivil + fnac + estudios4 + tenen + vehic + UI.N + DI.N,
                  data = INMO.SC)
   summary(Mod.4)  
   
@@ -640,7 +640,7 @@ AIC(fit.2) - AIC(fit.1)
   
   Mod.4.ran <- coxme(Surv(time = age.entry,
                           time2 = age.exit,
-                          event = event) ~ sexo + dep + ecivil + estudios4 + tenen + vehic + fnac  + UI.N + DI.N + (1|SC),
+                          event = event) ~ sexo + dep + ecivil +  fnac + estudios4 + tenen + vehic  + UI.N + DI.N + (1|SC),
                      data = INMO.SC)
   
   AIC(Mod.4.ran)-AIC(Mod.4) # Model with random effects is more likely to minimize the information loss (difference 865.8751)
@@ -648,6 +648,21 @@ AIC(fit.2) - AIC(fit.1)
   
   AIC(Mod.4.ran) - AIC(Mod.3.ran) # just 53 difference
   
+  #### Further significance tests
   
+  library(lme4)
+  m2 <- lmer(felev ~ DI.N + (1|SC)+(0+DI.N|SC),data = INMO.SC, REML=FALSE)
+  m1 <- update(m2,.~DI.N + (1|SC))
+  m0 <- lm(felev ~ DI.N,data = INMO.SC)
+  anova(m2,m1,m0) ## two sequential tests
+  
+  ###############################################################################################################
+  
+  
+  stargazer(Mod.1, Mod.2, Mod.3, Mod.4, title ="Cox PH Model",no.space=F, 
+            ci=F, ci.level=0.95, omit.stat=c("max.rsq"),dep.var.labels=c("Relative mortality risk"),
+            covariate.labels=c("Male","Physically Dependend", "Single","Widowed","Divorced/Separated", "Birth Cohort", "No or Incomplete Educ.",
+                               "Primary/Secondary Educ.", "Does not Own House","Does not Own a Car", "Degree Urbanicity", "Harmful Environment"),
+            single.row=F, apply.coef = exp)
 
   
