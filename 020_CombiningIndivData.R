@@ -271,7 +271,8 @@ INMO.SC <- INMO %>% left_join(SCCON, by="SC")
                                        Hospitals, Universities, Supermarkets, Open.Markets, ArtSurfA,
                                        Road.density, total.area.m2, total.area.km2, Service.area.popacc,
                                        pop.den, road.den, POPDEN.I.SD, ARTSURF.I.SD, ROADDEN.I.SD, SERAREA.I.SD,
-                                       UI, UI.cat, UI.N, UI.logit, DI, DI.N)
+                                       UI, UI.cat, UI.N, UI.logit, DI, DI.N, IP_RUIDOS, IP_CONTAM, IP_LIMPIEZA,
+                                       IP_DELINC, IP_HOGMONOP)
 
 #### Create final working data set
   

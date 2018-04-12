@@ -21,6 +21,10 @@ library(broom)
 library(readxl)
 library(sp)
 library(rgdal)
+library(RColorBrewer)
+library("gridExtra")
+library("lattice")
+
 
 
 # 0.2 load data set
@@ -239,9 +243,9 @@ spplot(ANDALUS.SC,"DI.N") ### Be careful with the missings ---------------------
 
 require(maptools)
 require(spdep)
-require(rgdal)
 
 writePolyShape(ANDALUS.SC, "data/ANDALUS_SC2001")
+### ---------------------------------------------------------------------------------------- ###
 ### ---------------------------------------------------------------------------------------- ###
 
   # Check degree of urbanization by zooming into Seville
@@ -264,19 +268,34 @@ writePolyShape(ANDALUS.SC, "data/ANDALUS_SC2001")
   SEV.city <- c("41091")
   
   # Municipality
+  
   SEV <- subset(ANDALUS.SC, codmun %in% SEV.city)
-  SEV.UI.plot <- spplot(SEV, "UI.N")
-  SEV.DI.plot <- spplot(SEV,"DI.N")
+  
+  ### Map Plot
+  # 37.3891° N, 5.9845° W
+  
+
+  myCols <- adjustcolor(colorRampPalette(brewer.pal(n=9, 'Blues'))(100), .85)
+  
+  
+  SEV.UI.plot <- spplot(SEV, "UI.N",col.regions=myCols, scales=list(draw = TRUE), colorkey=TRUE)
+  
+
+
+  SEV.DI.plot <- spplot(SEV,"DI.N",col.regions=myCols, scales=list(draw = TRUE), colorkey=TRUE)
   
   # Provincia
   SEV.P <- subset(ANDALUS.SC, codmun %in% SEV.mun)
   P.SEV.UI.plot <- spplot(SEV.P, "UI.N")
   P.SEV.DI.plot <- spplot(SEV.P,"DI.N")
 
-  library("gridExtra")
-  library("lattice")
-  
+  ### Put both in one grid 
   grid.arrange(SEV.UI.plot, SEV.DI.plot, ncol=2, nrow=1)
+  
+  
+  ### ---------------------------------------------------------------------------------------- ###
+  ### ---------------------------------------------------------------------------------------- ###
+  
   
   ######################################################### UI - seems to measure urbanicity quite well
   
@@ -447,12 +466,14 @@ KM.male <- survfit(Surv(time = age.entry,
         
         
   # plot
-  KM.UI %>% ggplot(aes(x=time,y=estimate,color=UI)) +
+  UI.plot <- KM.UI %>% ggplot(aes(x=time,y=estimate,color=UI)) +
             geom_step() +
-            scale_color_brewer(name=" ", palette = "Set1") +
+            scale_color_manual(values=c("green2", "goldenrod2", "dodgerblue1", "orangered"), name=" ",  
+                                 breaks=c("rural","predom. rural","peri-urban","urban")) +
             scale_x_continuous(name = "Age") +
             scale_y_continuous(name = "Estimated Survival Probability") +
             theme_bw()
+
   ## there seems to be some higher mortality for urban dwellers until age 75 (minimal but proportional to the rest)
   
   # -----------
@@ -518,7 +539,50 @@ KM.male <- survfit(Surv(time = age.entry,
     theme_bw()                                                        # that is very confusing: survival advantage of urban males
                                                                       # needs to be controlled for wealth and others
   
+ 
+  # -----------
+  # e) Survival estimates by development indicator
   
+  # three categories by 3-rds
+  quantile(INMO.SC$DI.N, c(.33, .66))
+  
+  INMO.SC <- INMO.SC %>% mutate(DI.cat = as.factor(ifelse(DI.N<=-0.4606759, "low", ifelse(DI.N<=0.3668282,"medium","high"))))
+  
+  table(INMO.SC$DI.cat)
+  
+  KM4.low <- survfit(Surv(time = age.entry,
+                            time2 = age.exit,
+                            event = event) ~ 1, data = subset(INMO.SC,DI.cat=="low"), type="kaplan-meier")
+  
+  KM4.medium <- survfit(Surv(time = age.entry,
+                                time2 = age.exit,
+                                event = event) ~ 1, data = subset(INMO.SC,DI.cat=="medium"), type="kaplan-meier")
+  
+  KM4.high <- survfit(Surv(time = age.entry,
+                                time2 = age.exit,
+                                event = event) ~ 1, data = subset(INMO.SC,DI.cat=="high"), type="kaplan-meier")
+  
+
+  KM4.low <- tidy(KM4.low) %>% dplyr::select(time,estimate) %>% mutate(DI = "Low")
+  KM4.med <- tidy(KM4.medium) %>% dplyr::select(time, estimate) %>% mutate(DI = "Medium")
+  KM4.hig <- tidy(KM4.high) %>% dplyr::select(time, estimate) %>% mutate(DI = "High")
+  
+  KM.DI <- union(KM4.low,KM4.med) %>% union(KM4.hig)
+  
+  # delete: 
+  rm(KM4.low, KM4.med, KM4.hig, KM4.medium, KM4.high)
+  
+  
+  # plot
+  DI.plot <- KM.DI %>% ggplot(aes(x=time,y=estimate,color=DI)) +
+    geom_step() +
+    scale_color_manual(values=c("green2", "goldenrod2", "dodgerblue1"), name=" ",  
+                       breaks=c("Low","Medium","High")) +
+    scale_x_continuous(name = "Age") +
+    scale_y_continuous(name = " ") +
+    theme_bw()
+  
+  grid.arrange(UI.plot, DI.plot, ncol=2)
   
 ### -------------------------------------------------------------------------------- ###
 ###                          4. Mixed Effects Cox Model                              ###
@@ -527,6 +591,9 @@ KM.male <- survfit(Surv(time = age.entry,
 library(coxme)  
 
 stem(table(INMO.SC$SC))  
+
+##########################################################
+### %%%%%%%%%%%%% Models with Indicator effects only -  UI
 
 ### Simple model without random effects (only "Urbanicity" as covariate)
 fit.1 <- coxph(Surv(time = age.entry,
@@ -553,6 +620,36 @@ anova(fit.1, fit.2)
 AIC(fit.2) - AIC(fit.1)
 # difference of AICs in favor of the model which accounts spatial
 
+###########################################################
+### %%%%%%%%%%%%% Models with Indicator effects only -  DI
+
+
+### Simple model without random effects (only "Urbanicity" as covariate)
+fit.3 <- coxph(Surv(time = age.entry,
+                    time2 = age.exit,
+                    event = event) ~ DI.N, data=INMO.SC)
+
+### Simple model WITH random effects (only "Urbanicity" as covariate)
+
+# Logic - intercept (effect) per Census Tract (group)
+
+fit.4 <- coxme(Surv(time = age.entry,
+                    time2 = age.exit,
+                    event = event) ~ DI.N + (1|SC), data=INMO.SC)
+
+print(fit.4)
+### Compare the log-partial likelihood to the model without random effects
+
+summary(fit.3)
+
+
+anova(fit.3, fit.4)
+
+## compare AICs
+AIC(fit.4) - AIC(fit.3)
+        # difference of AICs in favor of the model which accounts spatial
+
+
   ### --------------------------------------------------------------------------------------------------------------------- ###
   ### --------------------------------------------------------------------------------------------------------------------- ###
   ### --------------------------------------------------------------------------------------------------------------------- ###
@@ -574,28 +671,29 @@ AIC(fit.2) - AIC(fit.1)
   ### --------------------------------------------------------------------------------------------------------------------- ###
   ### --------------------------------------------------------------------------------------------------------------------- ###
 
+  
 ######################
 ### Testing models ###
 ######################
 
   
-### Model 1 - sex, dependency, civil status, cohort
+### Model 1 - Urban Indicator
   Mod.1 <- coxph(Surv(time = age.entry,
                       time2 = age.exit,
-                      event = event) ~ sexo + dep + ecivil + fnac, data = INMO.SC)
+                      event = event) ~ UI.N, data = INMO.SC)
   
   Mod.1.ran <- coxme(Surv(time = age.entry,
                       time2 = age.exit,
-                      event = event) ~ sexo + dep + ecivil + fnac + (1|SC), data = INMO.SC)
+                      event = event) ~ UI.N + (1|SC), data = INMO.SC)
   
   ## Compare Model Fit
   AIC(Mod.1.ran)-AIC(Mod.1)
   
-### Model 2 - Model 1 + education, car ownership, housing ownership
+### Model 2 - Environment Effects
   
   Mod.2 <- coxph(Surv(time = age.entry,
                       time2 = age.exit,
-                      event = event) ~ sexo + dep + ecivil + fnac + estudios4 + tenen + vehic,
+                      event = event) ~ DI.N,
                       data = INMO.SC)
   summary(Mod.2)
   
@@ -603,17 +701,17 @@ AIC(fit.2) - AIC(fit.1)
   
   Mod.2.ran <- coxme(Surv(time = age.entry,
                       time2 = age.exit,
-                      event = event) ~ sexo + dep + ecivil + fnac + estudios4 + tenen + vehic + (1|SC),
+                      event = event) ~ DI.N + (1|SC),
                  data = INMO.SC)
   
   AIC(Mod.2.ran)-AIC(Mod.2) # Model with random effects is more likely to minimize the information loss
   
   
-### Model 3 - Model 2 + Urbanicity effects (UI.N)
+### Model 3 - Urbanicity effects (UI.N) + Environment Effects at the same time
 
   Mod.3 <- coxph(Surv(time = age.entry,
                       time2 = age.exit,
-                      event = event) ~ sexo + dep + ecivil + fnac + estudios4 + tenen + vehic + UI.N,
+                      event = event) ~ UI.N + DI.N,
                  data = INMO.SC)
   summary(Mod.3)  
   
@@ -622,16 +720,16 @@ AIC(fit.2) - AIC(fit.1)
   
   Mod.3.ran <- coxme(Surv(time = age.entry,
                           time2 = age.exit,
-                          event = event) ~ sexo + dep + ecivil + fnac + estudios4 + tenen + vehic  + UI.N + (1|SC),
+                          event = event) ~ UI.N + DI.N + (1|SC),
                      data = INMO.SC)
   
   AIC(Mod.3.ran)-AIC(Mod.3) # Model with random effects is more likely to minimize the information loss (difference 888.4247)
   
-### Model 4 - Model 3 + Area Deprivation (DI.N)
+### Model 4 - Model 3 + Individual Level Effects
   
   Mod.4 <- coxph(Surv(time = age.entry,
                       time2 = age.exit,
-                      event = event) ~ sexo + dep + ecivil + fnac + estudios4 + tenen + vehic + UI.N + DI.N,
+                      event = event) ~ UI.N + DI.N + sexo + dep + ecivil + fnac + estudios4 + tenen + vehic,
                  data = INMO.SC)
   summary(Mod.4)  
   
@@ -640,7 +738,7 @@ AIC(fit.2) - AIC(fit.1)
   
   Mod.4.ran <- coxme(Surv(time = age.entry,
                           time2 = age.exit,
-                          event = event) ~ sexo + dep + ecivil +  fnac + estudios4 + tenen + vehic  + UI.N + DI.N + (1|SC),
+                          event = event) ~ UI.N + DI.N + sexo + dep + ecivil +  fnac + estudios4 + tenen + vehic + (1|SC),
                      data = INMO.SC)
   
   AIC(Mod.4.ran)-AIC(Mod.4) # Model with random effects is more likely to minimize the information loss (difference 865.8751)
@@ -660,9 +758,193 @@ AIC(fit.2) - AIC(fit.1)
   
   
   stargazer(Mod.1, Mod.2, Mod.3, Mod.4, title ="Cox PH Model",no.space=F, 
-            ci=F, ci.level=0.95, omit.stat=c("max.rsq"),dep.var.labels=c("Relative mortality risk"),
-            covariate.labels=c("Male","Physically Dependend", "Single","Widowed","Divorced/Separated", "Birth Cohort", "No or Incomplete Educ.",
-                               "Primary/Secondary Educ.", "Does not Own House","Does not Own a Car", "Degree Urbanicity", "Harmful Environment"),
+            ci=F, ci.level=0.95, omit.stat=c("max.rsq"),dep.var.labels=c("Hazard Ratios"),
+            covariate.labels=c("Degree Urbanicity", "Development Indicator","Male","Physically Dependend", 
+                               "Single","Widowed","Divorced/Separated", "Birth Cohort", "No or Incomplete Educ.",
+                               "Primary/Secondary Educ.", "Does not Own House","Does not Own a Car"),
             single.row=F, apply.coef = exp)
 
+
+  ###############################################################################################################
+  ###############################################################################################################
+  ###############################################################################################################
+  ###############################################################################################################
   
+  ### Graphs for the presentation:
+  
+  library(broom)
+  library(forestplot)
+  library(survminer)
+  
+  ## Test
+  ggforest(fit.3)
+  
+  
+  
+  ##### NEW CODIGO
+  
+  ### forest plot for the indicator variables (both indicators in one model)
+  
+  label <- c("Urban Ind.(Cox)", "Urban Ind.(Mix)", "Urban Ind. (Devel.)" , "Urban Ind. (full)",
+             "Develop. Ind.(Cox)", "Develop. Ind.(Mix)", "Develop. Ind. (Urban)", "Develop. Ind. (full)")
+  hazard  <- c(1.002,1.003,0.9794,0.9975,1.027,1.029,1.042,1.045) 
+  lower <- c(0.9949,0.9944,0.968925,0.9873881,1.02,1.020473,1.031397,1.03474)
+  upper <- c(1.01,1.011,0.9898532,1.007701,1.035,1.037815,1.052775,1.03474)
+  
+  df <- data.frame(label, hazard, lower, upper)
+  
+  # reverses the factor level ordering for labels after coord_flip()
+  df$label <- factor(df$label, levels=rev(df$label))
+  
+  # fade out insignificant values
+  alpha_vector = rep(0.25, nrow(df))
+  alpha_vector[c(3,5,6,7,8)] = 1
+  
+  df$alpha = alpha_vector
+
+  fp <- ggplot(data=df, aes(x=label, y=hazard, ymin=lower, ymax=upper, alpha=alpha)) +
+    geom_pointrange(show.legend=FALSE) + 
+    geom_hline(yintercept=1, lty=2) +  # add a dotted line at x=1 after flip
+    coord_flip() +  # flip coordinates (puts labels on y axis)
+    xlab(" ") + ylab("Hazard Ratios (95% CI)") +
+    theme_bw()  # use a white background
+  print(fp)
+  
+  
+  ### forest plot for the urban indicator
+  ### -----------------------------------
+  
+  # label.urb <- c("Urban Ind.(Cox)", "Urban Ind.(Mix)", "Urban Ind. (Devel.)" , "Urban Ind. (full)")
+  
+  ### Alternative Labels
+  label.urb <- c("Cox (Only Ind.)", "Mixed Model (Only Ind.)", "Mixed Model (Two Ind.)" , "Full Model")
+  
+  hazard.urb  <- c(1.002,1.003,0.9794,0.9975) 
+  lower.urb <- c(0.9949,0.9944,0.968925,0.9873881)
+  upper.urb <- c(1.01,1.011,0.9898532,1.007701)
+  col.urb <- c("C","MC","MC","MC")
+  df.urb <- data.frame(label.urb, hazard.urb, lower.urb, upper.urb,col.urb)
+  
+  # reverses the factor level ordering for labels after coord_flip()
+  df.urb$label.urb <- factor(df.urb$label.urb, levels=rev(df.urb$label.urb))
+  
+  
+  fp.urb <- ggplot(data=df.urb, aes(x=label.urb, y=hazard.urb, ymin=lower.urb, ymax=upper.urb, color=col.urb)) +
+    geom_pointrange() + 
+    geom_hline(yintercept=1, lty=2) +  # add a dotted line at x=1 after flip
+    coord_flip() +  # flip coordinates (puts labels on y axis)
+    xlab(" ") + ylab("Hazard Ratios (95% CI)") +
+    scale_color_brewer(palette="Dark2", name=" ")              +
+    theme_bw()   + # use a white background
+    theme(legend.position="none")
+  print(fp.urb)
+  
+  
+ # theme(text = element_text(size=20),
+ #        axis.text.x = element_text(angle=90, hjust=1)) 
+  
+  
+  ### forest plot for the development indicator
+  ### -----------------------------------------
+  
+  # label.dev <- c("Develop. Ind. (Cox)", "Develop. Ind. (Mix)", "Develop. Ind. (Urban)" , "Develop. Ind. (full)")
+  
+  label.dev <- c("Cox", "Ind", "Inds" , "Full")
+  
+  hazard.dev  <- c(1.027,1.029,1.042,1.045) 
+  lower.dev <- c(01.02,1.020473,1.031397,1.03474)
+  upper.dev <- c(1.035,1.037815,1.052775,1.03474)
+  col.dev <- c("C","MC","MC","MC")
+  df.dev <- data.frame(label.dev, hazard.dev, lower.dev, upper.dev,col.dev)
+  
+  # reverses the factor level ordering for labels after coord_flip()
+  df.dev$label.dev <- factor(df.dev$label.dev, levels=rev(df.dev$label.dev))
+  
+  
+  fp.dev <- ggplot(data=df.dev, aes(x=label.dev, y=hazard.dev, ymin=lower.dev, ymax=upper.dev, color=col.dev)) +
+    geom_pointrange() + 
+    geom_hline(yintercept=1, lty=2) +  # add a dotted line at x=1 after flip
+    coord_flip() +  # flip coordinates (puts labels on y axis)
+    xlab(" ") + ylab("Hazard Ratios (95% CI)") +
+    scale_color_brewer(palette="Dark2", name=" ")              +
+    theme_bw()  # use a white background
+  print(fp.dev)
+  
+  grid.arrange(fp.urb, fp.dev, ncol=2)
+  
+  
+###################################################################################################################
+###################################################################################################################
+  
+  ### Additional stuff 
+  
+  # Indicator Components of the UI (POPDEN.I+ARTSURF.I+ROADDEN.I+SERAREA.I)
+  Mod.1.I <- coxph(Surv(time = age.entry,
+                        time2 = age.exit,
+                        event = event) ~ POPDEN.I.SD+ARTSURF.I.SD+ROADDEN.I.SD+SERAREA.I.SD, data = INMO.SC)
+  
+  Mod.1.I.ran <- coxme(Surv(time = age.entry,
+                          time2 = age.exit,
+                          event = event) ~ POPDEN.I.SD+ARTSURF.I.SD+ROADDEN.I.SD+SERAREA.I.SD + (1|SC), data = INMO.SC)
+  
+  summary(Mod.1.I)
+  print(Mod.1.I.ran)
+  
+  
+  ### Model 2 - Components of the Environment Effects Indicator (IP_RUIDOS + IP_CONTAM + IP_LIMPIEZA + IP_DELINC + IP_HOGMONOP)
+  
+  Mod.2.I <- coxph(Surv(time = age.entry,
+                      time2 = age.exit,
+                      event = event) ~ IP_RUIDOS + IP_CONTAM + IP_LIMPIEZA + IP_DELINC + IP_HOGMONOP,
+                 data = INMO.SC)
+  summary(Mod.2.I)
+  
+  Mod.2.I.ran <- coxme(Surv(time = age.entry,
+                          time2 = age.exit,
+                          event = event) ~ IP_RUIDOS + IP_CONTAM + IP_LIMPIEZA + IP_DELINC + IP_HOGMONOP + (1|SC),
+                     data = INMO.SC)
+  
+  print(Mod.2.I.ran)
+  
+  AIC(Mod.2.I.ran)-AIC(Mod.2.I) # Model with random effects is more likely to minimize the information loss
+  AIC(Mod.2.I)-AIC(Mod.1.I) # Model 2 fits the data much better than Model 1 (difference 1370.697)
+  
+  ### Model 3 - Components of the both indicators
+  
+  Mod.3.I <- coxph(Surv(time = age.entry,
+                        time2 = age.exit,
+                        event = event) ~ POPDEN.I.SD+ARTSURF.I.SD+ROADDEN.I.SD+SERAREA.I.SD + 
+                     IP_RUIDOS + IP_CONTAM + IP_LIMPIEZA + IP_DELINC + IP_HOGMONOP,
+                   data = INMO.SC)
+  summary(Mod.3.I)
+  
+  Mod.3.I.ran <- coxme(Surv(time = age.entry,
+                            time2 = age.exit,
+                            event = event) ~ POPDEN.I.SD+ARTSURF.I.SD+ROADDEN.I.SD+SERAREA.I.SD + 
+                         IP_RUIDOS + IP_CONTAM + IP_LIMPIEZA + IP_DELINC + IP_HOGMONOP + (1|SC),
+                       data = INMO.SC)
+  
+  print(Mod.3.I.ran)
+  
+  ### Model 4 - FULL MODEL
+  
+  Mod.4.I <- coxph(Surv(time = age.entry,
+                        time2 = age.exit,
+                        event = event) ~ POPDEN.I.SD+ARTSURF.I.SD+ROADDEN.I.SD+SERAREA.I.SD + 
+                     IP_RUIDOS + IP_CONTAM + IP_LIMPIEZA + IP_DELINC + IP_HOGMONOP +
+                     sexo + dep + ecivil + fnac + estudios4 + tenen + vehic,
+                   data = INMO.SC)
+  summary(Mod.4.I)
+  
+  Mod.4.I.ran <- coxme(Surv(time = age.entry,
+                            time2 = age.exit,
+                            event = event) ~ POPDEN.I.SD+ARTSURF.I.SD+ROADDEN.I.SD+SERAREA.I.SD + 
+                         IP_RUIDOS + IP_CONTAM + IP_LIMPIEZA + IP_DELINC + IP_HOGMONOP +
+                         sexo + dep + ecivil + fnac + estudios4 + tenen + vehic+ (1|SC),
+                       data = INMO.SC)
+  
+  print(Mod.4.I.ran)
+  
+  
+  
+  + sexo + dep + ecivil + fnac + estudios4 + tenen + vehic
