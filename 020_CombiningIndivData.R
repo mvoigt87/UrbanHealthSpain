@@ -238,6 +238,12 @@ round(prop.table(table(INMO$OCCUP2)),3)
 INMO <- within(INMO, OCCUP2 <- relevel(OCCUP2, ref = "Manual Work"))
 
 
+## ------------------------------------------------------------------------- ##  
+## At home - For exposure to residential environment (unemployed or retired) ##
+## ------------------------------------------------------------------------- ##
+
+INMO <- INMO %>% mutate(athome = as.factor(ifelse(OCCUP2=="Without Occupation" | OCCUP2=="Retired","at home", "working")))
+
 ##### --------------------------------------------------------------------------------------------------- #####
 ##### --------------------------------------------------------------------------------------------------- #####
 ##### --------------------------------------------------------------------------------------------------- #####
@@ -272,7 +278,7 @@ INMO.SC <- INMO %>% left_join(SCCON, by="SC")
                                        Road.density, total.area.m2, total.area.km2, Service.area.popacc,
                                        pop.den, road.den, POPDEN.I.SD, ARTSURF.I.SD, ROADDEN.I.SD, SERAREA.I.SD,
                                        UI, UI.cat, UI.N, UI.logit, DI, DI.N, IP_RUIDOS, IP_CONTAM, IP_LIMPIEZA,
-                                       IP_DELINC, IP_HOGMONOP)
+                                       IP_DELINC, IP_HOGMONOP, athome)
 
 #### Create final working data set
   
