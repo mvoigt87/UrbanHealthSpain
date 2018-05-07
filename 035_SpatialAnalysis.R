@@ -1,6 +1,13 @@
 ### ----------------------------------------------------------------------------------------- ###
 ###                        Check for Spatial Autocorrelation                                  ###
 ### ----------------------------------------------------------------------------------------- ###
+library(readxl)
+library(sp)
+library(rgdal)
+library(RColorBrewer)
+library("gridExtra")
+library("lattice")
+
 
 ### Load spatial data - shape file
 

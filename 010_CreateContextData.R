@@ -109,6 +109,9 @@ saveRDS(SCCON,file="010_SCCONTEXT.RData")
  SCCON <- SCCON %>% 
           # Population density
           mutate(pop.den = PERSONAS/total.area.km2) %>%
+          # Population density by artificial surface !!!
+          mutate(artf.area.km2 = (ArtSurfA*total.area.km2)/100) %>% 
+          mutate(pop.den.art = PERSONAS/artf.area.km2) %>%
           # Road density
           mutate(road.den = Road.density/total.area.km2)
  
@@ -137,7 +140,7 @@ saveRDS(SCCON,file="010_SCCONTEXT.RData")
  SCCON.cor <- SCCON %>% dplyr::select(SC,PERSONAS,PERS_VIV,PCT_OCUPADOS,PCT_CASADOS,PCT_TENENPROP, PCT_2VIV, PCT_2VEHIC, 
                                PCT_EDIFBUEN, PCT_TNUC1, MED_HIJOS, PCT_JOVENES, EDAD_MEDIA, PCT_AGRIC, IP_DELINC,
                                IP_ASEO, IP_RUIDOS, IP_CONTAM, IP_HOGMONOP, NEDIFIC, Bus.stops, Health.center,
-                               Universities, Supermarkets, ArtSurfA, road.den, Portion.popacc, pop.den)
+                               Universities, Supermarkets, ArtSurfA, road.den, Portion.popacc, pop.den, pop.den.art)
  
  cor.sccon <- cor(SCCON.cor)
  corrplot(cor.sccon, order = "hclust", tl.cex = .75)
@@ -170,7 +173,7 @@ saveRDS(SCCON,file="010_SCCONTEXT.RData")
  #      Min.  1st Qu.   Median     Mean  3rd Qu.      Max. 
  #      0.00    17.81   188.00   444.40   547.50  25590.00 
  
- # D. Number of buildings - does not to be in relation to the population density
+ # D. Number of buildings - is not necessarily related to population density
  summary(SCCON$NEDIFIC)
  hist(SCCON$NEDIFIC, breaks = 30)
  # similar distribution like the population density
@@ -253,7 +256,7 @@ SCCON <- SCCON %>%
   # Normalize the values
   
   # Standard Deviation & Mean
-  SD <- sd(SCCON$UI)  # 0.8348496
+  SD <- sd(SCCON$UI)  # 0.8314849
   M <- mean(SCCON$UI) # 2.0872672
   
   SCCON <- SCCON %>% mutate(UI.N = (UI-M)/SD)
@@ -287,6 +290,7 @@ SCCON <- SCCON %>%
   plot(fit.norm)
   
 
+  
   
   
   ##### --------------------------------------------------------------------------------------------------- #####

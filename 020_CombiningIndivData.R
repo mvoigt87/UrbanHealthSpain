@@ -276,9 +276,9 @@ INMO.SC <- INMO %>% left_join(SCCON, by="SC")
                                        PCT_AGRIC, IP_DELINC, IP_CONTAM, IP_HOGMONOP, NEDIFIC,
                                        Hospitals, Universities, Supermarkets, Open.Markets, ArtSurfA,
                                        Road.density, total.area.m2, total.area.km2, Service.area.popacc,
-                                       pop.den, road.den, POPDEN.I.SD, ARTSURF.I.SD, ROADDEN.I.SD, SERAREA.I.SD,
+                                       pop.den, pop.den.art, road.den, POPDEN.I.SD, ARTSURF.I.SD, ROADDEN.I.SD, SERAREA.I.SD,
                                        UI, UI.cat, UI.N, UI.logit, DI, DI.N, IP_RUIDOS, IP_CONTAM, IP_LIMPIEZA,
-                                       IP_DELINC, IP_HOGMONOP, athome, IP_EDBAJO_TOTAL, PCT_TENENPROP)
+                                       IP_DELINC, IP_HOGMONOP, athome, IP_EDBAJO_TOTAL, PCT_TENENPROP, Portion.popacc)
 
 #### Create final working data set
   
