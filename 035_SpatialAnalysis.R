@@ -51,8 +51,8 @@ SMRsc$SC <- as.character(as.factor(SMRsc$SC))
 table(nchar(SMRsc$SC))
 
 SPAT.SC <- SCCON %>% dplyr::select(SC, PERSONAS, MUNI, PCT_OCUPADOS, EDAD_MEDIA, PCT_AGRIC, ArtSurfA, Service.area.popacc, pop.den,
-                                   POPDEN.I.SD, ARTSURF.I.SD, ROADDEN.I.SD, SERAREA.I.SD, UI, UI.cat, UI.N, UI.logit,
-                                   DI, DI.N)
+                                   POPDEN.I.SD, ARTSURF.I.SD, ROADDEN.I.SD, SERAREA.I.SD, UI, UI.cat, UI.N, IP_DESEMPLEO, IP_CONTAM,
+                                   IP_RUIDOS, PCT_SOLTEROS, IP_DELINC)
 
 table(nchar(SPAT.SC$SC))
 # known error! - add the zero to the "SC"
@@ -183,8 +183,20 @@ ANDALUS.SC$SMRe <- as.numeric(ANDALUS.SC$SMRe)
 moran.test(ANDALUS.SC$SMRe, and.lw)                       ### highly spatially correlated: Moran I statistic = 0.380
 # Urbanicity indicator
 moran.test(ANDALUS.SC$UI.N, and.lw)                       ### highest spatial correllation: Moran I statistic = 0.784
-# Deprivation indicator
-moran.test(ANDALUS.SC$DI.N, and.lw)                       ### highly spatially correlated: Moran I statistic = 0.685
+# Noise
+moran.test(ANDALUS.SC$IP_RUIDOS, and.lw)                  ### high spatial correllation: Moran I statistic = 0.570***
+# Pollution
+moran.test(ANDALUS.SC$IP_CONTAM, and.lw)                  ### high spatial correllation: Moran I statistic = 0.444***
+# Single Households
+moran.test(ANDALUS.SC$PCT_SOLTEROS, and.lw)               ### high spatial correllation: Moran I statistic = 0.568***
+# Unemployment
+moran.test(ANDALUS.SC$IP_DESEMPLEO, and.lw)               ### high spatial correllation: Moran I statistic = 0.5004***
+# Delinquency
+moran.test(ANDALUS.SC$IP_DELINC, and.lw)                  ### high spatial correllation: Moran I statistic = 0.780***
+
+
+    # Deprivation indicator
+    # moran.test(ANDALUS.SC$DI.N, and.lw)                       ### highly spatially correlated: Moran I statistic = 0.685
 
 
 ### --------------------------------------------------- ###    
