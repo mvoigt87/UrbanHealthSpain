@@ -141,10 +141,15 @@ SEV.UI.plot <- spplot(SEV, "UI.N",col.regions=myCols, scales=list(draw = TRUE), 
 
 SEV.DI.plot <- spplot(SEV,"DI.N",col.regions=myCols, scales=list(draw = TRUE), colorkey=TRUE)
 
-# Provincia
-SEV.P <- subset(ANDALUS.SC, codmun %in% SEV.mun)
-P.SEV.UI.plot <- spplot(SEV.P, "UI.N")
-P.SEV.DI.plot <- spplot(SEV.P,"DI.N")
+
+SEV.SMR.plot <- spplot(SEV,"SMRe",col.regions=myCols, scales=list(draw = TRUE), colorkey=TRUE)
+
+### Provincia ###
+# SEV.P <- subset(ANDALUS.SC, codmun %in% SEV.mun)
+# P.SEV.UI.plot <- spplot(SEV.P, "UI.N")
+# P.SEV.DI.plot <- spplot(SEV.P,"DI.N")
+# P.SEV.SMR.plot <- spplot(SEV.P,"SMRe")
+
 
 ### Put both in one grid 
 grid.arrange(SEV.UI.plot, SEV.DI.plot, ncol=2, nrow=1)
@@ -163,8 +168,9 @@ grid.arrange(SEV.UI.plot, SEV.DI.plot, ncol=2, nrow=1)
 
 and.nb <- poly2nb(ANDALUS.SC)
 
-# row-standardised weight matrix - increased the weights of links from observation with few neighbours
-# --- in this case the row sums of the weights are unity
+### Row-standardised weight matrix - increased the weights of links from observation with few neighbours
+  # --- in this case the row sums of the weights are unity
+
 and.lw <- nb2listw(and.nb, style = "W")    
 
 # add ", zero.policy=TRUE" in case of missing neighbours

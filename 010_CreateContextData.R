@@ -94,7 +94,7 @@ SCCON <- sc2001 %>% left_join(sclandc,by="SC") %>% left_join(scservice, by="SC")
 
 #### 4. Save new cobined context data set for later use ####
 
-saveRDS(SCCON,file="010_SCCONTEXT.RData")
+# saveRDS(SCCON,file="010_SCCONTEXT.RData")
 
  # rm(sc2001,sclandc,scservice)
 

@@ -691,6 +691,8 @@ stem(table(INMO.SC$SC))
                       time2 = age.exit,
                       event = event) ~ POPDEN.I.SD + ARTSURF.I.SD + ROADDEN.I.SD + SERAREA.I.SD, data=INMO.SC)
   
+  summary(fit.comp)
+  
   ### Simple model WITH random effects (only "Urbanicity" as covariate)
   
   # Logic - intercept (effect) per Census Tract (group)
@@ -699,6 +701,26 @@ stem(table(INMO.SC$SC))
                       time2 = age.exit,
                       event = event) ~ POPDEN.I.SD + ARTSURF.I.SD + ROADDEN.I.SD + SERAREA.I.SD + (1|SC), data=INMO.SC)
 
+  
+  
+  
+  ### Model 2 without random effects (and single components)
+  fit.comp.2 <- coxph(Surv(time = age.entry,
+                         time2 = age.exit,
+                         event = event) ~ POPDEN.I.SD + ARTSURF.I.SD + ROADDEN.I.SD + SERAREA.I.SD + sexo + 
+                                          dep + ecivil + fnac + estudios4 + tenen + vehic, data=INMO.SC)
+  
+  summary(fit.comp.2)
+  
+  ### Model 2 without random effects (and single components) WITH random effects
+  
+  fit.comp.2.ran <- coxme(Surv(time = age.entry,
+                             time2 = age.exit,
+                             event = event) ~ POPDEN.I.SD + ARTSURF.I.SD + ROADDEN.I.SD + SERAREA.I.SD + sexo + 
+                                              dep + ecivil + fnac + estudios4 + tenen + vehic + (1|SC), data=INMO.SC)
+  
+  fit.comp.2.ran
+  
   
   ### %%%%%%%%%%%%% Full Models with Indicator components -  UI
   ### Simple model without random effects (only "Urbanicity" as covariate)
@@ -710,7 +732,7 @@ stem(table(INMO.SC$SC))
                         PCT_SOLTEROS + IP_DELINC, data=INMO.SC)
   
   summary(Mod.4.comp)
-  ### Simple model WITH random effects (only "Urbanicity" as covariate)
+
   
   # Logic - intercept (effect) per Census Tract (group)
   

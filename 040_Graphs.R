@@ -81,6 +81,9 @@ grid.arrange(fp.urb, fp.dev, ncol=2)
 
 ### forest plot for Indicator Components
 
+###################################################################################################################
+###################################################################################################################
+### Prepare the input data
 label <- c("Population Density (S)", "Population Density (F)", "Artificial Surface (S)" , "Artificial Surface (F)",
            "Health Service (S)", "Health Service (F)", "Road Density (S)", "Road Density (F)")
 hazard  <- c(0.9949,0.9962,0.97533,0.9857,1.0023,0.9942,1.0346,1.0156)
@@ -92,7 +95,8 @@ col.dev <- c("S","F","S","F","S","F","S","F")
 df <- data.frame(label, hazard, lower, upper, col.dev)
 # reverses the factor level ordering for labels after coord_flip()
 df$label <- factor(df$label, levels=rev(df$label))
-
+###################################################################################################################
+###################################################################################################################
     # fade out insignificant values
     # alpha_vector = rep(0.25, nrow(df))
     # alpha_vector[c(3,5,6,7,8)] = 1
@@ -108,10 +112,57 @@ fp.comp <- ggplot(data=df, aes(x=label, y=hazard, ymin=lower, ymax=upper,color=c
   theme_bw()  # use a white background
 print(fp.comp)
 
+###################################################################################################################
+###################################################################################################################
 
+### different line types for black and white plot - for publication
+
+fp.comp.2 <- ggplot(data=df, aes(x=label, y=hazard, ymin=lower, ymax=upper,linetype=col.dev, shape=col.dev, color=col.dev)) +
+  geom_pointrange(show.legend=FALSE) +
+  geom_hline(yintercept=1, lty=2) +  # add a dotted line at x=1 after flip
+  coord_flip() +  # flip coordinates (puts labels on y axis)
+  xlab(" ") + ylab("Hazard Ratios (95% CI)") +
+  scale_color_manual(values=c("#000000", "#A9A9A9"), name=" ") +
+  theme_bw()  # use a white background
+fp.comp.2 <- fp.comp.2 + theme(legend.position = c(0.15, 0.15))
+print(fp.comp.2)
 
 ###################################################################################################################
 ###################################################################################################################
+### Another attempt with groups - for publication
+#   (https://datascienceplus.com/lattice-like-forest-plot-using-ggplot2-in-r/)
+
+# Changing the labels
+label <- c("Population Density", "Population Density", "Artificial Surface" , "Artificial Surface",
+           "Health Service", "Health Service", "Road Density", "Road Density")
+df <- data.frame(label, hazard, lower, upper, col.dev)
+
+### ----------------------------------------------------------------------------------------------------- ###
+fp = ggplot(data=df,
+           aes(x = col.dev,y = hazard, ymin = lower, ymax = upper))+
+  geom_pointrange(aes(col=col.dev, shape=col.dev))+
+  geom_hline(aes(fill=col.dev), yintercept =1, linetype=2)+
+  xlab(' ')+ ylab("Hazard Ratio (95% Confidence Interval)")+
+  geom_errorbar(aes(ymin=lower, ymax=upper,col=col.dev),width=0.25,cex=0.5)+ 
+  scale_color_manual(values=c("#000000", "#A9A9A9"), labels=c("Full Model", "Model 1"), name=" ") +
+  scale_fill_discrete(name = " ") +
+  facet_wrap(~label,strip.position="left",nrow=9,scales = "free_y") +
+  theme_bw() +
+   # theme(plot.title=element_text(size=12),
+  #       axis.text.y=element_blank(),
+  #       axis.ticks.y=element_blank(),
+  #       axis.text.x=element_text(face="bold"),
+  #       axis.title=element_text(size=12),
+  #       strip.text.y = element_text(hjust=0,vjust = 1,angle=180,face="bold"))+
+  coord_flip()
+fp <- fp + theme(legend.position = c(0.85, 0.9), axis.text.y=element_blank(), axis.ticks.y=element_blank()) + 
+  scale_shape_discrete(guide=FALSE)
+fp
+###################################################################################################################
+###################################################################################################################
+
+
+
 
 ### KMEs Poster
 
