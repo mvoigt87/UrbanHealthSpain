@@ -42,12 +42,6 @@ fp.urb <- ggplot(data=df.urb, aes(x=label.urb, y=hazard.urb, ymin=lower.urb, yma
   theme(legend.position="none")
 print(fp.urb)
 
-# scale_color_brewer(palette="Oranges", name=" ",direction = -1)              +
-
-# theme(text = element_text(size=20),
-#        axis.text.x = element_text(angle=90, hjust=1)) 
-
-
 ### forest plot for the development indicator
 ### -----------------------------------------
 
@@ -158,6 +152,31 @@ fp = ggplot(data=df,
 fp <- fp + theme(legend.position = c(0.85, 0.9), axis.text.y=element_blank(), axis.ticks.y=element_blank()) + 
   scale_shape_discrete(guide=FALSE)
 fp
+
+### -------------
+### With colors!
+### -------------
+fp.col = ggplot(data=df,
+            aes(x = col.dev,y = hazard, ymin = lower, ymax = upper))+
+  geom_pointrange(aes(col=col.dev, shape=col.dev))+
+  geom_hline(aes(fill=col.dev), yintercept =1, linetype=2)+
+  xlab(' ')+ ylab("Hazard Ratio (95% Confidence Interval)")+
+  geom_errorbar(aes(ymin=lower, ymax=upper,col=col.dev),width=0.25,cex=0.5)+ 
+  scale_color_manual(values=c("#FFF24C", "#3400B2"), labels=c("Full Model", "Model 1"), name=" ") +
+  scale_fill_discrete(name = " ") +
+  facet_wrap(~label,strip.position="left",nrow=9,scales = "free_y") +
+  theme_bw() +
+  # theme(plot.title=element_text(size=12),
+  #       axis.text.y=element_blank(),
+  #       axis.ticks.y=element_blank(),
+  #       axis.text.x=element_text(face="bold"),
+  #       axis.title=element_text(size=12),
+  #       strip.text.y = element_text(hjust=0,vjust = 1,angle=180,face="bold"))+
+  coord_flip()
+fp.col <- fp.col + theme(legend.position = c(0.85, 0.9), axis.text.y=element_blank(), axis.ticks.y=element_blank()) + 
+  scale_shape_discrete(guide=FALSE)
+fp.col
+
 ###################################################################################################################
 ###################################################################################################################
 

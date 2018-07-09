@@ -1,0 +1,328 @@
+---
+title: "Urbanicity and Mortality Disparities in Andalusia"
+author: " "
+date: "10.05.2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+# General Comment
+This document is an attempt to answer the comments on our project on urbanicity and small area characteristics and the effect on health/mortality disparities in Spain and make some comments myself/ask questions. I hope this brings us on the same page, invites further comments, serves us to stay up-to-date, and lead to a quick completion. It will probably be a good idea to have this or a similar document with date stamp in the dropbox so that everybody who gives comments can do so whenever he or she pleases.
+
+## Main Idea
+Just for repition, the main idea of the project, as far as I understood it, is that there are particular area features which potentially affect health and ultimately mortality of the people who live/have a residence in these areas. Intuitively and backed up by historical research (key concept: *urban penalty*), we would assume that such environmental hazards are concentrated in urban agglomerations (worse water, air quality, heat etc.). As there is no universal approach to even conceptualize what we mean by urban or rural, we decided to create our own measure with satellite land cover data. Based on the comments we have received in Cambridge, it was decided to make a clean separation between purely physical features and socio-environmental factors. The aim of this separation was also to have a re-usable indicator for how urban a place is. Such an indicator can not only be applied for other types of analysis, it would add something different to the demographic research on geographical differences. 
+*Personal note*: Given the comments we have received so far, I would strongly suggest to focus on this "urbanicity" index, even if it does not contribute much to the explanation of mortality disparities in our case. However, we add something by basically decomposing the "small area" effects. Our result is, that is does not matter if an individual resides in a city or in the country (despite arguable advantages of living close to specialized health care centers).
+
+```{r load myData, echo=FALSE, include=FALSE}
+### Loading data set & packages
+# 0.1 packages 
+library(tidyverse)
+library(ggplot2)
+library(data.table)
+library(survival)
+library(stargazer)
+library(memisc)
+library(broom)
+library(readxl)
+library(sp)
+library(rgdal)
+library(RColorBrewer)
+library("gridExtra")
+library("lattice")
+library(corrplot)
+library(psych)
+require(maptools)
+require(spdep)
+# 0.2 load data set
+load("data/025_INDMOR-CT.RData")
+INMO.old <- INMO.SC %>% dplyr::filter(age.entry>=35 & age.entry<=80)
+```
+# Potential threaths to validity -  or just things that are still up for discussion
+```{r aggrating deaths, echo=FALSE}
+# aggregating deaths by census tract
+aggdata <-aggregate(INMO.old$event==1, by=list(INMO.old$SC),FUN=sum, na.rm=TRUE)
+# list-wise delete the cases
+colnames(aggdata) <- c("SC","agg.death")
+  
+INMO.SIN2 <- INMO.old %>% left_join(aggdata, by="SC") %>% 
+    dplyr::filter(agg.death>=2)
+```
+
+## Population - Age range and time lag between observations
+Since we assume individual mortality risks are affected by area features of their residential environments, we excluded age groups with high probability for residential changes (younger people who move out the parents household and older people who move into care facilities or with relatives). The age range is between age `r min(INMO.old$age.entry)` and `r max(INMO.old$age.entry)`. The follow up time is 12 years, thus our oldest individuals are about 92 years old. We can argue that even if they have moved in with younger relatives or in care facilities at higher ages, they were still exposed to the residential environment for a substantial part of their life time. 
+
+We discussed the time lag between observations and event/censoring time as threat to validity already and if you agree, I will just mention it in the part on data limitations and try to argue that the variables we have selected are more likely to be time-independent. While that might be true for the individual level variables, I doubt that we see no development in degree of urbanicity or other area features in the last 12 years. If you have ideas on this point, please let me know. The same problem occurs for the residential changes which we cannot observe.  
+
+## Number of events
+Another potential problem I came across in a paper, can be too few deaths once the individuals are aggregated by census tract. Given the large number of cases and events, it did not seem something to worry about. However, as you can see below, the average number of deaths by census tract is only about `r round(mean(aggdata$x),2)` and there are more than 70 census tracts with less than 2 deaths within the observation period. 
+For now I will not include these tracts and its residents in the analysis, but if you have a better suggestion, please let me know!
+
+```{r deaths by census tracts, echo=FALSE}
+summary(aggdata$agg.death)
+
+agg.table <- table(aggdata$agg.death>=2)
+names(agg.table)<-c("< 2 deaths",">= 2 deaths")
+agg.table
+# there are less than 2 deaths in 25 census tracts over the years!
+```
+
+
+## Urbanicity Index
+First of all, I agree with Fran, that the indicator construction is kind of a black box and in the past we had good reasons to be a little bit mysterious about it while we were figuring out the optimal composition and still meeting the deadlines. In order to achieve more clarity I am going to re-write the paragraph on the indicator construction within the next days. As Fran has suggested, it would also be good to show the factor weights or the correlation between the physical variables. Personally, I would prefer to mention that we selected physical variable a,b, and c "apriori" and continued to test correlations and ran a factor analysis. My feeling is that a correlation plot like the following has some descriptive power but it is rather unusual to include it in a paper.
+
+```{r Indicator Correlation, echo=FALSE, warning=FALSE, message=FALSE}
+ cor.UI <- INMO.SC %>% dplyr::select(ArtSurfA, road.den, pop.den, pop.den.art, Portion.popacc, VIVIENDAS, NEDIFIC,Hospitals,
+                                     Universities, Open.Markets, Supermarkets)
+ # correlation plot
+ cor.UI <- cor(cor.UI)
+ corrplot(cor.UI, type="upper", order = "FPC", tl.col = 'black', tl.cex = .75)
+
+```
+
+I tried to include just physical and population-based measures, and what we see is not so great but in line with earlier results. We find the four variables artificial surface, population density, road density and proportion of service area (health center) positively correlated. Once they are standardized they seem to make a good indicator which Crohnbachs alpha suggest for expample.
+
+```{r crohnbach, echo=FALSE}
+  ### a) pipe line for creating the index parts and the standardized factor
+cor.UI <- INMO.SC %>% 
+          dplyr::mutate(POPDEN.I = ntile(pop.den,4)) %>% 
+          dplyr::mutate(ARTSURF.I = ntile(ArtSurfA,4)) %>% 
+          dplyr::mutate(ROADDEN.I = ntile(road.den,4)) %>% 
+          dplyr::mutate(SERAREA.I = ntile(Portion.popacc,4)) %>% 
+  ### b) in a second step we standardize the indicators
+          dplyr::mutate(POPDEN.I.SD = POPDEN.I - mean(POPDEN.I) / sd(POPDEN.I)) %>% 
+          dplyr::mutate(ARTSURF.I.SD = ARTSURF.I - mean(ARTSURF.I) / sd(ARTSURF.I)) %>% 
+          dplyr::mutate(ROADDEN.I.SD = ROADDEN.I - mean(ROADDEN.I) / sd(ROADDEN.I)) %>%
+          dplyr::mutate(SERAREA.I.SD = SERAREA.I - mean(SERAREA.I) / sd(SERAREA.I))
+cor.UI.fac <- cor.UI %>% dplyr::select(POPDEN.I.SD, ARTSURF.I.SD, ROADDEN.I.SD, SERAREA.I.SD)
+  
+  ## 2.Identify correlations
+  CS <- cor(cor.UI.fac)
+  
+  ### Crohnbachs alpha as reliability coefficient (=91%)
+  alpha(CS)
+```
+
+Nevertheless, I agree to make the whole construction less of a black box for the editor/future reader and would suggest to present the factor wheights and elaborate on the selection. 
+```{r factor, echo=FALSE, warning=FALSE}
+  ## 3. apply explanatory factor analysis
+  fit <- factanal(cor.UI.fac, 1 , rotation="varimax")
+  
+  print(fit, digits=2, cutoff=.3, sort=TRUE)
+```
+I also completely agree that it will be necessary to shorten the part on the indicator components. This is still an artefact from the rush to the deadline and I am working on it.
+
+### Indicator components
+Here is room for debate. I would argue that an indirect measure for "urbanicity" needs to include population density. Knowing that most census sections are determined by population size, there is remaining variability in area size. Including population density would therefore add a component of crowdedness which is more or less already determined by the area size of the tract. However, not all tracts of only based on the population in it as we see from the variation.
+
+```{r populationdensity_censustract, echo=FALSE,  warning=FALSE, message=FALSE}
+#hist(INMO.old$pop.den, breaks=50)
+INMO.SIN2 %>% ggplot(aes(pop.den)) +  
+  geom_histogram() + 
+  scale_x_continuous(name="Population Density") +
+  scale_y_continuous(name=" ") +
+  theme_bw()
+```
+
+A second possibility, suggested by Fran, would have been to use population size by artificial surface which would account for the case that suburban areas in big census tracts might also be crowded.These tracts would become a higher weight, if we use the proportion of artificial surface as area base for the density. The problem is as indicated by the correlation plot is that there is almost no variation between the areas.
+
+```{r popdensity_artificial, echo=FALSE, warning=FALSE, message=FALSE}
+INMO.SIN2 %>% ggplot(aes(pop.den.art)) +  
+  geom_histogram() + 
+  scale_x_continuous(name="Population Density by Artificial Surface") +
+  scale_y_continuous(name=" ") +
+  theme_bw()
+```
+
+The two other physical variables, artificial surface proportion and road density, are probably the least questionable components when it comes to justification but at least the artificial surface has a peculiar distribution over the census sections with two peaks at the extreme ends.  
+The proportion of the population accounted service areas is not my favorite variable because we miss values for about 30% of the census tracts.  
+However, graphical tests indicate that the final indicator does seem to measure what we want it to do. It seemingly captures different degrees of "urban" especially when we look at the big cities.
+  
+```{r spatial maps, echo=FALSE, warning=FALSE, message=FALSE}
+# load data
+ANDALUS.SC <- readOGR(dsn="C:/Users/y4956294S/Documents/LONGPOP/Subproject 3 - Urban Environment and Health/RCode/UrbanHealthSpain/data/mapas.capas/SecCensales2001",
+                      layer = "andalusia.census.tract.2001")
+
+d <- ANDALUS.SC@data
+
+# standardized single indicators
+# number of events / SMR
+load("data/015_ContextAndUI.RData")
+load("data/SMRsc.RData")
+
+SMRsc <- SMRsc %>% dplyr::filter(sex=="Both") %>% mutate(SC=census.tract) %>% dplyr::select(SC,SMRe)
+
+# make the transformation to the final format
+
+SMRsc$SC <- as.character(as.factor(SMRsc$SC))
+table(nchar(SMRsc$SC))
+
+SPAT.SC <- SCCON %>% dplyr::select(SC, PERSONAS, MUNI, PCT_OCUPADOS, pop.den, UI, UI.N)
+
+SPAT.SC$SC[nchar(SPAT.SC$SC)==9] <- paste0("0", SPAT.SC$SC[nchar(SPAT.SC$SC)==9])
+SPAT.SC$SC <- as.factor(SPAT.SC$SC)        
+SPAT.SC <- SPAT.SC %>% left_join(SMRsc, by="SC")
+
+# join what you get
+d <- d %>% mutate(SC = codigo01) %>% 
+  left_join(SPAT.SC, by="SC")
+
+### Now the data goes back to the spatial object
+ANDALUS.SC@data <- d
+
+SEV.mun.all <- c("41001","41002","41003","41004","41005", "41006", "41007", "41008", "41009", "41010", "41011",
+                 "41012", "41013", "41014", "41015", "41016", "41017", "41018", "41019", "41020", "41021",
+                 "41022", "41023", "41024", "41025", "41026", "41027", "41028", "41029", "41030", "41031",
+                 "41032", "41033", "41034", "41035", "41036", "41037", "41038", "41039", "41040", "41041", 
+                 "41042", "41043", "41044", "41045", "41046", "41047", "41048", "41049", "41050", "41051",
+                 "41052", "41053", "41054", "41055", "41056", "41057", "41058", "41059", "41060", "41061",
+                 "41062", "41063", "41064", "41065", "41066", "41067", "41068", "41069", "41070", "41071",
+                 "41072", "41073", "41074", "41075", "41076", "41077", "41078", "41079", "41080", "41081",
+                 "41082", "41083", "41084", "41085", "41086", "41087", "41088", "41089", "41090", "41091",
+                 "41092", "41093", "41094", "41095", "41096", "41097", "41098", "41099", "41100", "41101",
+                 "41102", "41901", "41902", "41903")
+SEV.city <- c("41091")
+
+# Municipality
+
+SEV <- subset(ANDALUS.SC, codmun %in% SEV.city)
+
+myCols <- adjustcolor(colorRampPalette(brewer.pal(n=7, 'Blues'))(100), .85)
+
+
+SEV.UI.plot <- spplot(SEV, "UI.N",col.regions=myCols, scales=list(draw = TRUE), colorkey=TRUE)
+SEV.UI.plot
+# # provinicia sevilla
+SEV.P <- subset(ANDALUS.SC, codmun %in% SEV.mun.all)
+P.SEV.UI.plot <- spplot(SEV.P, "UI.N",col.regions=myCols, scales=list(draw = TRUE), colorkey=TRUE)
+P.SEV.UI.plot
+```
+
+Please note, that this document is just for internal use. I am aware that we have to use GIS for mapping our indicators or other variables with geographical variation.
+
+## Environmental and social area features
+Compared to the PAA paper, this is where we will have the biggest changes. I slightly disagree with Fran that the "Harmful Environment Indicator" is a good measure. In my opinion, the indicator we presented is a rather arbitrary measure which mixes different indirect effects which are hard to justify and combine in a meaningful way. Instead of the indicator, I am suggesting to include the additional area features in two model steps, one for physical environmental factors unrelated to urbanicity and one for population-based or social-environmental variables which all cover a slightly different aspect (or potential source of risk). For now, the physical environmental variables are cleanness, Pollution, and Noise. The social-environment is represented through number of delinquencies, percentage of employed, and percentage of single households (which might be related to urban environments). The choice was based on a few sensibility tests and is not exhaustive. Suggestions are welcome!
+
+## Spatial Autocorrelation
+This is in fact something we have to reconsider as there are, to my knowledge no models on the market, with which we can easily estimate risks for individuals which are clustered in areas which features are spatially auto-correlated. Our model includes a random effect on the baseline for every census tract, but it does not account for proximity as far as I understood. Two solutions come to my mind (not exhaustive). 
+1.We apply the local Morons I only as measure to justify the multi-level structure - in way: Look! There is spatial variation so it does make sense to analyse mortality area differences at the census tract level
+2.Or we can go with Bivand et al (2013 - Applied Spatial Analysis with R) who state that "spatial patterning – spatial
+autocorrelation – may be treated as useful information about unobserved influences, but it does challenge the application of methods of statistical inference that assume the mutual independence of observations."  
+I read somewhere that it is possible to use Lees L as justification for not accounting for the spatial auto-correlation in the regression model. This would include a little bit more research (see [Lee](https://link.springer.com/referenceworkentry/10.1007%2F978-3-319-17885-1_1524) )
+
+
+# Model Results
+As our focus is on area effects, I agree with Fran that the "urbanicity" indicator has to be in every model (That was already included in the paper I finally uploaded to the PAA website). I re-ran the analysis with the adjustments we made (new age groups, missing values etc.) and attached the results below. The table is unfortunately only visible in the pdf-document (excuses for the inconvenience. That is something I need to figure out later).  
+In contrast to the results presented at PAA, we include the additional area effects in single (hopefully) meaningful model steps. All models seem to fit the data better than the less complete model and the same model without random effects. This was tested with Log-Likelihood Ratio Test Statistics (see [Thernau 2015](https://cran.r-project.org/web/packages/coxme/vignettes/coxme.pdf) "Mixed Effects Cox Models"). In model 2 the environmental effects are incorporated and as we see in all models, the only consistent effect seems to come from contamination. The third model step accounts for additional population-based or social environment effects which are suggested to be all highly significant even when individual differences are included. The effect of delinquency seems not surprising, but also employment and household composition effect hold. And model 4 is the full model which is the most interesting since the effect of urbanicity disappears while other area features, especially the social-environment ones remain to have an impact.    
+*Note:* I will follow Frans advice to include interaction effects.
+
+\begin{table}[!htbp] \centering 
+	\caption{Cox PH Model with mixed effects} 
+	\label{} 
+	\begin{tabular}{@{\extracolsep{5pt}}lcccc} 
+		\\[-1.8ex]\hline 
+		\hline \\[-1.8ex] 
+		& \multicolumn{4}{c}{\textit{Dependent variable:}} \\ 
+		\cline{2-5} 
+		\\[-1.8ex] & \multicolumn{4}{c}{Hazard Ratios (95\% CI)} \\ 
+		\\[-1.8ex] & (1) & (2) & (3) & (4)\\ 
+		\hline \\[-1.8ex] 
+		"Urbanicity" Index & 1.0061$^{}$ & 1.0308$^{***}$ & 1.0176$^{**}$ & 1.0027$^{}$ \\ 
+		& (0.9963, 1.0158) & (1.0212, 1.0404) & (1.0058, 1.0295) & (0.9904, 1.0150) \\ 
+		& & & & \\ 
+		\hline \\[-1.8ex] 
+		Perceived Cleaness &  & & 1.0007$^{**}$ & 1.0005$^{*}$ \\ 
+		&  &  & (1.0001, 1.0012) & (0.9999, 1.0011) \\ 
+		& & & & \\ 
+		Perceived Pollution &  &  & 1.0020$^{***}$& 1.0020$^{***}$ \\ 
+		&  &  & (1.0011, 1.0029) & (1.0012, 1.0029) \\ 
+		& & & & \\ 
+		Perceived Noise &  &  & 0.9999$^{}$ & 0.9995$_{}$ \\ 
+		&  &  & (0.9991, 1.0008) & (0.99872, 1.0004) \\ 
+		& & & & \\ 
+		\hline \\[-1.8ex] 
+%		Delinquency &  &  &  1.0019$^{***}$& 1.0017$^{***}$ \\ 
+%		&  &  & (1.0013, 1.0026) & (1.0011, 1.0023) \\ 
+%		& & & & \\ 
+		\% Unemployed &  &  &  & 1.0025$^{***}$ \\ 
+		&  &  & & (1.0013, 1.0036) \\ 
+		& & & & \\ 
+		\% Single HH &  &  &  & 1.0094$^{***}$ \\ 
+		&  &  & & (1.0070, 1.0119) \\ 
+		& & & & \\ 
+		\hline \\[-1.8ex] 
+		Male &  & 2.0872$^{***}$ & 2.0883$^{***}$ & 2.0898$^{***}$ \\ 
+		&  & (2.0682, 2.106) & (2.0692, 2.1074) & (2.0707, 2.1089) \\ 
+		\multicolumn{2}{l}{\emph{Reference: Female}} & & & \\
+		\hline \\[-1.8ex]
+		Physically Dependent &  & 3.0286$^{***}$ & 3.0180$^{***}$ & 3.0028$^{***}$ \\ 
+		&  & (2.9617, 3.0954) & (2.9512, 3.0848) & (2.9360, 3.0695) \\ 
+		\multicolumn{2}{l}{\emph{Reference: No Dependency}} & & & \\
+		\hline \\[-1.8ex]
+		Single &  & 1.412$^{***}$ & 1.4126$^{***}$ & 1.4038$^{***}$ \\ 
+		&  & (1.3826, 1.4422) & (1.3829, 1.4424) & (1.3740, 1.4336) \\ 
+		& & & & \\ 
+		Widowed &  & 1.1836$^{***}$ & 1.1823$^{***}$ & 1.1808$^{***}$ \\ 
+		&  & (1.1586, 1.2085) & (1.1573, 1.2073) & (1.1559, 1.2058) \\ 
+		& & & & \\ 
+		Divorced/Separated &  & 1.4794$^{***}$ & 1.4765$^{***}$ & 1.4768$^{***}$ \\ 
+		&  & (1.4249, 1.5340) & (1.4219, 1.5310) & (1.4222, 1.5314) \\ 
+		\multicolumn{2}{l}{\emph{Reference: Married}} & & & \\
+		\hline \\[-1.8ex]
+		No or Incomplete Educ. &  & 1.3798$^{***}$ & 1.3837$^{***}$ & 1.3942$^{***}$ \\ 
+		&  & (1.3387, 1.4210) & (1.3425, 1.4249) & (1.3529, 1.4357) \\ 
+		& & & & \\ 
+		Primary/Secondary Educ. &  & 1.1595$^{***}$ & 1.1598$^{***}$ & 1.1652$^{***}$ \\ 
+		&  & (1.1155, 1.2036) & (1.1157, 1.2038) & (1.1211, 1.2093) \\ 
+		\multicolumn{2}{l}{\emph{Reference: Tertiary Educ.}} & & & \\
+		\hline \\[-1.8ex]
+		Does not Own House &  &  1.1625$^{***}$ & 1.1537$^{***}$ & 1.1399$^{***}$ \\ 
+		&  & (1.1362, 1.1888) & (1.1274, 1.1801) & (1.1134, 1.1664) \\ 
+		\multicolumn{2}{l}{\emph{Reference: Does Own House/Apartment}} & & & \\
+		\hline \\[-1.8ex]
+		Does not Own a Car &  & 1.2690$^{***}$ & 1.2693$^{***}$ & 1.2653$^{***}$ \\ 
+		&  & (1.2493, 1.2887) & (1.2497, 1.2890) & (1.2456, 1.2851) \\ 
+		\multicolumn{2}{l}{\emph{Reference: Does Own Car(s)}} & & & \\
+		\hline \\[-1.8ex] 
+		Observations & 351,769 & 351,769 & 351,769 & 351,769 \\ 
+		%	R$^{2}$ & 0.00000 & 0.00000 & 0.00000 & 0.025 \\ 
+		Log Likelihood & $-$542,763.5 & $-$538,537.7 & $-$538,510.2 & $-$538,471.8 \\ 
+		%	Wald Test & 1.530 (df = 1) & 1.530 (df = 1) & 1.530 (df = 1) & 8,988.150$^{***}$ (df = 17) \\ 
+		LR Test & 128.61 (df = 2)$^{***}$ & 8451.6 (df = 12)$^{***}$ & 55$^{**}$ (df = 15) & 76.8$^{***}$ (df = 17) \\ 
+		%	Score (Logrank) Test & 1.530 (df = 1) & 1.530 (df = 1) & 1.530 (df = 1) & 9,254.047$^{***}$ (df = 17) \\ 
+		\hline 
+		\hline \\[-1.8ex] 
+		\textit{Note:}  & \multicolumn{4}{r}{$^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+	\end{tabular} 
+\end{table}
+
+One of the comments after the PAA presentation indicated that it would be interesting for the reader to get to know about the effects of the single indicator components. We could include a second regression table with how the indicator components affect mortality in the single models or a forest plot as this preliminary one below:  
+
+```{r forest plot, echo=FALSE, warning=FALSE}
+### Alternative Labels
+label.urb.IF <- c("Population Den. (Cox)", "Population Den. (Mix)", "Artif. Surface (Cox)" , "Artif. Surface (Mix)",
+                  "Road Den. (Cox)", "Road Den. (Mix)", "Service Area (Cox)", "Service Area (Mix)")
+
+hazard.urb.IF  <- c(0.9936,0.9943,0.9890,0.9881,1.0151,1.0144,0.9935,0.9936) 
+lower.urb.IF <- c(0.9769,0.9760,0.9768,0.9747,1.0005,0.9988,0.9837,0.9830)
+upper.urb.IF <- c(1.0106, 1.0126,1.0013,1.0014,1.0299,1.0301,1.0033,1.004)
+col.urb.IF <- c("C","MC","C","MC","C","MC","C","MC")
+df.urb.IF <- data.frame(label.urb.IF, hazard.urb.IF, lower.urb.IF, upper.urb.IF,col.urb.IF)
+
+# reverses the factor level ordering for labels after coord_flip()
+df.urb.IF$label.urb.IF <- factor(df.urb.IF$label.urb.IF, levels=rev(df.urb.IF$label.urb.IF))
+
+
+fp.urb.IF <- ggplot(data=df.urb.IF, aes(x=label.urb.IF, y=hazard.urb.IF, ymin=lower.urb.IF, ymax=upper.urb.IF, color=col.urb.IF)) +
+  geom_pointrange() + 
+  geom_hline(yintercept=1, lty=2) +  # add a dotted line at x=1 after flip
+  coord_flip() +  # flip coordinates (puts labels on y axis)
+  xlab(" ") + ylab("Hazard Ratios (95% CI)") +
+  scale_color_brewer(palette="Dark2", name=" ")              +
+  theme_bw()   + # use a white background
+  theme(legend.position="none")
+print(fp.urb.IF)
+```
