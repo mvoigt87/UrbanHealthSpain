@@ -70,3 +70,11 @@ fp = ggplot(data=df,
 fp <- fp + theme(legend.position = c(0.85, 0.1), axis.text.y=element_blank(), axis.ticks.y=element_blank()) + 
   scale_shape_discrete(guide=FALSE)
 fp
+
+
+### %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% ### 
+### %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% ### 
+### %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% ### 
+
+### Variation in the hazard over time for different frailties (different sd of random effect)
+

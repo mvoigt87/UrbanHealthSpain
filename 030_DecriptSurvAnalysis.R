@@ -197,17 +197,10 @@ INMO.SC %>% mutate(event = as.factor(ifelse(event==1,"dead","alive"))) %>% ggplo
   scale_y_continuous(name=" ") +
   theme_bw()
 
-<<<<<<< HEAD
-
 
 ### ------------------------------------------------------------------------------------------------ ###
 ###                          2. Spatial Autocorrelation => see file 035                              ###
 ### ------------------------------------------------------------------------------------------------ ###
-=======
-### ----------------------------------------------------------------------------------------- ###
-###                         2. Spatial Autocorrelation file 035                               ###
-### ----------------------------------------------------------------------------------------- ###
->>>>>>> b7adca901c32dfedc82bf5bcf4e5f7f5dd84561a
 
 
 ### ---------------------------------------------------------------------------------------- ###
@@ -444,7 +437,6 @@ stem(table(INMO.SC$SC))
 ##########################################################
 ### %%%%%%%%%%%%% Models with Indicator effects only -  UI
 
-<<<<<<< HEAD
           ### Simple model without random effects (only "Urbanicity" as covariate)
           fit.1 <- coxph(Surv(time = age.entry,
                               time2 = age.exit,
@@ -467,7 +459,7 @@ stem(table(INMO.SC$SC))
           ## compare AICs
           AIC(fit.2) - AIC(fit.1)
           # difference of AICs in favor of the model which accounts spatial
-=======
+
 ### Simple model without random effects (only "Urbanicity" as covariate)
 fit.1 <- coxph(Surv(time = age.entry,
                     time2 = age.exit,
@@ -490,7 +482,7 @@ anova(fit.1, fit.2)
 ## compare AICs
 AIC(fit.2) - AIC(fit.1)
 # difference of AICs in favor of the model which accounts spatial
->>>>>>> b7adca901c32dfedc82bf5bcf4e5f7f5dd84561a
+
 
 ###########################################################
                 # ### %%%%%%%%%%%%% Models with Indicator effects only -  DI
@@ -520,8 +512,7 @@ AIC(fit.2) - AIC(fit.1)
                 #         # difference of AICs in favor of the model which accounts spatial
 
 
-<<<<<<< HEAD
-=======
+
 ### Simple model without random effects (only "Urbanicity" as covariate)
 fit.3 <- coxph(Surv(time = age.entry,
                     time2 = age.exit,
@@ -545,7 +536,6 @@ anova(fit.3, fit.4)
 AIC(fit.4) - AIC(fit.3)
         # difference of AICs in favor of the model which accounts spatial
 
->>>>>>> b7adca901c32dfedc82bf5bcf4e5f7f5dd84561a
 
 
   ### --------------------------------------------------------------------------------------------------------------------- ###
@@ -574,12 +564,6 @@ AIC(fit.4) - AIC(fit.3)
   
                                             ####################
                                             ### Final Models ###
-                                            ####################
-<<<<<<< HEAD
-  
-  
-=======
->>>>>>> b7adca901c32dfedc82bf5bcf4e5f7f5dd84561a
 
   
 ### Model 1 - Urban Indicator
@@ -595,12 +579,10 @@ AIC(fit.4) - AIC(fit.3)
                       event = event) ~ UI.N + (1|SC), data = INMO.SC)
   
   ## Compare Model Fit
-<<<<<<< HEAD
   AIC(Mod.1)-AIC(Mod.1.ran) # 323.0393 difference - spatial models reduces information loss
-=======
+
   AIC(Mod.1)-AIC(Mod.1.ran) # (difference 349.7346 - model with spatial effects performs better)
->>>>>>> b7adca901c32dfedc82bf5bcf4e5f7f5dd84561a
-  
+
  
    # with age bound 95 (difference 349.7346 - model with spatial effects performs better)
   
@@ -621,19 +603,7 @@ AIC(fit.4) - AIC(fit.3)
                 #   
                 #   AIC(Mod.2)-AIC(Mod.2.ran) # Model with random effects is more likely to minimize the information loss (differences 339.2269)
   
-<<<<<<< HEAD
 
-
-=======
-  AIC(Mod.1)-AIC(Mod.2) # Model 2 fits the data much better than Model 1 (difference 46.87031)
->>>>>>> b7adca901c32dfedc82bf5bcf4e5f7f5dd84561a
-  
-  
-<<<<<<< HEAD
-  
-  
-  
-=======
   AIC(Mod.2)-AIC(Mod.2.ran) # Model with random effects is more likely to minimize the information loss (differences 339.2269)
   
   
@@ -646,7 +616,7 @@ AIC(fit.4) - AIC(fit.3)
   summary(Mod.3)  
    
  AIC(Mod.2)-AIC(Mod.3) # Model 3 fits the data only slightly than Model 2 (difference 16.51)
->>>>>>> b7adca901c32dfedc82bf5bcf4e5f7f5dd84561a
+
   
 
 ### Model 2 - Urbanicity effects (UI.N) + Environment effects (cleanness, air pollution, Noise)
@@ -664,7 +634,6 @@ AIC(fit.4) - AIC(fit.3)
   
 
   
-<<<<<<< HEAD
 ### Model 3 - Model 2 + Socio-cultural effects (delinquency, percentage_employed, Pct_Agriculture)
 
 # Cox model
@@ -672,10 +641,7 @@ AIC(fit.4) - AIC(fit.3)
                        time2 = age.exit,
                        event = event) ~ UI.N  + sexo + dep + ecivil +  fnac + estudios4 + tenen + vehic +
                                         IP_LIMPIEZA + IP_CONTAM + IP_RUIDOS, data = INMO.SC)
-=======
-  AIC(Mod.3)-AIC(Mod.3.ran) # Model with random effects is more likely to minimize the information loss (difference 333.2714)
->>>>>>> b7adca901c32dfedc82bf5bcf4e5f7f5dd84561a
-  
+
 # Spatially distributed model
   Mod.3.ran <- coxme(Surv(time = age.entry,
                            time2 = age.exit,
@@ -711,11 +677,6 @@ AIC(fit.4) - AIC(fit.3)
                  data = INMO.SC)
   summary(Mod.4)  
   
-<<<<<<< HEAD
-  # 
-  
-=======
->>>>>>> b7adca901c32dfedc82bf5bcf4e5f7f5dd84561a
   AIC(Mod.3)-AIC(Mod.4) # Model 4 fits the data much better than Model 3 as the individual variables enter (difference 8379.086)
   
   
@@ -735,11 +696,7 @@ AIC(fit.4) - AIC(fit.3)
   
   ### the most common way to do this is to use a likelihood ratio test, i.e. fit the full and reduced models 
   ### (the reduced model is the model with the focal variance(s) set to zero).
-<<<<<<< HEAD
-  
-  library(lme4)
-=======
-  
+
   library(lme4)
   
   
@@ -802,7 +759,7 @@ AIC(fit.4) - AIC(fit.3)
   library(forestplot)
   library(survminer)
   
->>>>>>> b7adca901c32dfedc82bf5bcf4e5f7f5dd84561a
+
   
   ## Test - ahh not really beautiful
   ggforest(fit.3)
@@ -818,18 +775,13 @@ AIC(fit.4) - AIC(fit.3)
   #   m1  4 -9547151 -9547108   4773580   -9547159    7948246      1  < 2.2e-16 ***
   #   m2  5 -9831402 -9831348   4915706   -9831412     284253      1  < 2.2e-16 ***
   
-<<<<<<< HEAD
+
   # With recent versions of lme4, goodness-of-fit (deviance) can be compared between (g)lmer and (g)lm models, 
   # although anova() must be called with the mixed ((g)lmer) model listed first. Keep in mind that LRT-based null hypothesis tests
   # are conservative when the null value (such as σ2=0) is on the boundary of the feasible space; in the simplest case 
   # (single random effect variance), the p-value is approximately twice as large as it should be (Pinheiro and Bates 2000).
-=======
-  ### Self-made plots
-  ### ---------------
->>>>>>> b7adca901c32dfedc82bf5bcf4e5f7f5dd84561a
-  
-  ### The model including random effects significantly improves the model fit
-  
+
+
   
   ###############################################################################################################
   
@@ -850,12 +802,12 @@ AIC(fit.4) - AIC(fit.3)
   
   ### %%%%%%%%%%%%% Models with Indicator components -  UI
   
-<<<<<<< HEAD
+
   ### Simple model without random effects (only "Urbanicity" as covariate)
   fit.comp <- coxph(Surv(time = age.entry,
                       time2 = age.exit,
                       event = event) ~ POPDEN.I.SD + ARTSURF.I.SD + ROADDEN.I.SD + SERAREA.I.SD, data=INMO.SC)
-=======
+
   ### forest plot for the development indicator
   ### -----------------------------------------
   
@@ -905,30 +857,26 @@ AIC(fit.4) - AIC(fit.3)
   Mod.1.I.ran <- coxme(Surv(time = age.entry,
                           time2 = age.exit,
                           event = event) ~ POPDEN.I.SD+ARTSURF.I.SD+ROADDEN.I.SD+SERAREA.I.SD + (1|SC), data = INMO.SC)
->>>>>>> b7adca901c32dfedc82bf5bcf4e5f7f5dd84561a
+
   
   summary(fit.comp)
   
-<<<<<<< HEAD
+
   ### Simple model WITH random effects (only "Urbanicity" as covariate)
-=======
+
   # Forest plot
   # ggforest(Mod.1.I, data = INMO.SC)
   
   # adjusted survival curves
   # ggadjustedcurves(Mod.1.I, data=INMO.SC)
->>>>>>> b7adca901c32dfedc82bf5bcf4e5f7f5dd84561a
+
   
   # Logic - intercept (effect) per Census Tract (group)
   
   fit.comp.ran <- coxme(Surv(time = age.entry,
                       time2 = age.exit,
-<<<<<<< HEAD
                       event = event) ~ POPDEN.I.SD + ARTSURF.I.SD + ROADDEN.I.SD + SERAREA.I.SD + (1|SC), data=INMO.SC)
 
-=======
-                      event = event) ~ IP_RUIDOS + IP_CONTAM + IP_LIMPIEZA + IP_DELINC + IP_HOGMONOP,
-                 data = INMO.SC)
   summary(Mod.2.I)
   
   # Forest plot  
@@ -940,7 +888,7 @@ AIC(fit.4) - AIC(fit.3)
                      data = INMO.SC)
   
   print(Mod.2.I.ran)
->>>>>>> b7adca901c32dfedc82bf5bcf4e5f7f5dd84561a
+
   
   
   
@@ -971,7 +919,7 @@ AIC(fit.4) - AIC(fit.3)
                         IP_LIMPIEZA + IP_CONTAM + IP_RUIDOS + PCT_UNEMPL + 
                         PCT_SOLTEROS + IP_DELINC, data=INMO.SC)
   
-<<<<<<< HEAD
+
   summary(Mod.4.comp)
 
   
@@ -983,8 +931,45 @@ AIC(fit.4) - AIC(fit.3)
                            + sexo + dep + ecivil +  fnac + estudios4 + tenen + vehic +
                            IP_LIMPIEZA + IP_CONTAM + IP_RUIDOS + PCT_UNEMPL + 
                            PCT_SOLTEROS + IP_DELINC +(1|SC), data=INMO.SC)
-=======
 
+  ########################################################################################################################
+  ########################################################################################################################
+  
+  ### Cut the time in periods and compare effect over time
+  
+  summary(INMO.SC$time)
+  
+  # compare the first 6 years and the last
+  
+  ## Change time variable
+  INMO.SC.2 <- INMO.SC %>% mutate(abaja.2 = ifelse(abaja>2008,2008,abaja)) %>% 
+    # new entry as well (reoccurrences!)
+    mutate(aalta.2 = ifelse(aalta>2008, 2008, aalta)) %>% 
+    # create a new time variable
+    mutate(time.2 = ifelse(abaja.2-aalta.2==0,0.05,abaja.2-aalta.2)) %>% 
+    # change event variable
+    mutate(event.2 = ifelse(abaja>2008,0,event))
+  
+  
+  INMO.SC.2 <- INMO.SC.2 %>% dplyr::mutate(age.entry.2 = aalta.2-fnac) %>%     ## census year 2002 - the birth year
+    # the second age variable is for the exit from the risk set calculated as the inital age + the time to death or censorship 
+    dplyr::mutate(age.exit.2 = age.entry.2+time.2)
+  
+  
+  Cox.4 <- coxph(Surv(time = age.entry,
+                      time2 = age.exit,
+                      event = event) ~ UI.N + IP_LIMPIEZA + IP_CONTAM + IP_RUIDOS + IP_DELINC + PCT_OCUPADOS +
+                   PCT_SOLTEROS + sexo + dep + ecivil +  fnac + estudios4 + tenen + vehic, 
+                 data=INMO.SC.2)
+  
+  
+  Cox.4.2008 <- coxph(Surv(time = age.entry.2,
+                      time2 = age.exit.2,
+                      event = event.2) ~ UI.N + IP_LIMPIEZA + IP_CONTAM + IP_RUIDOS + IP_DELINC + PCT_OCUPADOS +
+                   PCT_SOLTEROS + sexo + dep + ecivil +  fnac + estudios4 + tenen + vehic, 
+                 data=INMO.SC.2)
+  
+  
   ### forest plot for the single indicator variables
   ### ----------------------------------------------
   
@@ -1181,5 +1166,4 @@ AIC(fit.4) - AIC(fit.3)
     # 
     # ### Save as txt
     # write.table(FOR.MAP,file = "ForMap.txt",sep = ";",row.names=FALSE)
-  
->>>>>>> b7adca901c32dfedc82bf5bcf4e5f7f5dd84561a
+
