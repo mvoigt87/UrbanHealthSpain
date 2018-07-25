@@ -136,12 +136,12 @@ fp = ggplot(data=df,
            aes(x = col.dev,y = hazard, ymin = lower, ymax = upper))+
   geom_pointrange(aes(col=col.dev, shape=col.dev))+
   geom_hline(aes(fill=col.dev), yintercept =1, linetype=2)+
-  xlab(' ')+ ylab("Hazard Ratio (95% Confidence Interval)")+
+  xlab(' ')+ ylab(" ")+
   geom_errorbar(aes(ymin=lower, ymax=upper,col=col.dev),width=0.25,cex=0.5)+ 
   scale_color_manual(values=c("#000000", "#A9A9A9"), labels=c("Full Model", "Model 1"), name=" ") +
-  scale_fill_discrete(name = " ") +
+  scale_fill_discrete(name = " ",guide=FALSE) +
   facet_wrap(~label,strip.position="left",nrow=9,scales = "free_y") +
-  theme_bw() +
+  theme_minimal() +
    # theme(plot.title=element_text(size=12),
   #       axis.text.y=element_blank(),
   #       axis.ticks.y=element_blank(),
@@ -151,11 +151,14 @@ fp = ggplot(data=df,
   coord_flip()
 fp <- fp + theme(legend.position = c(0.85, 0.9), axis.text.y=element_blank(), axis.ticks.y=element_blank()) + 
   scale_shape_discrete(guide=FALSE)
-fp
+# without legend
+fp + theme(legend.position="none")
 
 ### -------------
 ### With colors!
 ### -------------
+
+
 fp.col = ggplot(data=df,
             aes(x = col.dev,y = hazard, ymin = lower, ymax = upper))+
   geom_pointrange(aes(col=col.dev, shape=col.dev))+
@@ -176,6 +179,8 @@ fp.col = ggplot(data=df,
 fp.col <- fp.col + theme(legend.position = c(0.85, 0.9), axis.text.y=element_blank(), axis.ticks.y=element_blank()) + 
   scale_shape_discrete(guide=FALSE)
 fp.col
+
+
 
 ###################################################################################################################
 ###################################################################################################################
@@ -242,73 +247,7 @@ EDU.plot <- EDU.plot + theme(legend.position = c(0.2, 0.2))
 ###################################################################################################################
 ###################################################################################################################
 ###################################################################################################################
-
-### forest plot for the single indicator variables
-### ----------------------------------------------
-
-
-### Alternative Labels
-label.urb.I <- c("Population Den. (Cox)", "Population Den. (Mix)", "Artif. Surface (Cox)" , "Artif. Surface (Mix)",
-                 "Road Den. (Cox)", "Road Den. (Mix)", "Service Area (Cox)", "Service Area (Mix)")
-
-hazard.urb.I  <- c(0.9925,0.9943,0.9817,0.9808,1.0295,1.0285,0.9995,0.9999) 
-lower.urb.I <- c(0.9760,0.9754,0.9698,0.9671,1.0149,1.0123,0.9903,0.9894)
-upper.urb.I <- c(1.0093,1.0132,0.9937,0.9946,1.0444,1.0447,1.0087,1.0104)
-col.urb.I <- c("C","MC","C","MC","C","MC","C","MC")
-df.urb.I <- data.frame(label.urb.I, hazard.urb.I, lower.urb.I, upper.urb.I,col.urb.I)
-
-# reverses the factor level ordering for labels after coord_flip()
-df.urb.I$label.urb.I <- factor(df.urb.I$label.urb.I, levels=rev(df.urb.I$label.urb.I))
-
-
-fp.urb.I <- ggplot(data=df.urb.I, aes(x=label.urb.I, y=hazard.urb.I, ymin=lower.urb.I, ymax=upper.urb.I, color=col.urb.I)) +
-  geom_pointrange() + 
-  geom_hline(yintercept=1, lty=2) +  # add a dotted line at x=1 after flip
-  coord_flip() +  # flip coordinates (puts labels on y axis)
-  xlab(" ") + ylab("Hazard Ratios (95% CI)") +
-  scale_color_brewer(palette="Dark2", name=" ")              +
-  theme_bw()   + # use a white background
-  theme(legend.position="none")
-print(fp.urb.I)
-
-
-# theme(text = element_text(size=20),
-#        axis.text.x = element_text(angle=90, hjust=1)) 
-
-
-### forest plot for the development indicator
-### -----------------------------------------
-
-label.dev.I <- c("Noise (Cox)", "Noise (Mix)", "Pollution (Cox)", "Pollution (Mix)", "Cleanness (Cox)", "Cleanness (Mix)",
-                 "Delinquency (Cox)", "Delinquency (Mix)", "Homogeneity (Cox)", "Homogeneity (Mix)")
-
-hazard.dev.I  <- c(0.9976,0.9976,1.0023,1.0023,1.0003,1.0003,1.0008,1.0008,1.0066,1.0069) 
-lower.dev.I <- c(0.9969,0.9969,1.0015,1.0014,0.9998,0.9998,1.0003,1.0002,1.0045,1.0045)
-upper.dev.I <- c(0.9982,0.9983,1.0030,1.0031,1.00008,1.0008,1.0013,1.0013,1.0087,1.0092)
-col.dev.I <- c("C","MC","C","MC","C","MC","C","MC","C","MC")
-df.dev.I <- data.frame(label.dev.I, hazard.dev.I, lower.dev.I, upper.dev.I,col.dev.I)
-
-# reverses the factor level ordering for labels after coord_flip()
-df.dev.I$label.dev.I <- factor(df.dev.I$label.dev.I, levels=rev(df.dev.I$label.dev.I))
-
-
-fp.dev.I <- ggplot(data=df.dev.I, aes(x=label.dev.I, y=hazard.dev.I, ymin=lower.dev.I, ymax=upper.dev.I, color=col.dev.I)) +
-  geom_pointrange() + 
-  geom_hline(yintercept=1, lty=2) +  # add a dotted line at x=1 after flip
-  coord_flip() +  # flip coordinates (puts labels on y axis)
-  xlab(" ") + ylab("Hazard Ratios (95% CI)") +
-  scale_color_brewer(palette="Dark2", name=" ")              +
-  theme_bw()  # use a white background
-print(fp.dev.I)
-
-# grid.arrange(fp.urb.I, fp.dev.I, ncol=2)
-
-
-##########################################################################################################################
-##########################################################################################################################
-
-##########################################################################################################################
-##########################################################################################################################  
+ 
 ### Model 4
 
 #                                         exp(coef) exp(-coef) lower .95 upper .95
@@ -386,40 +325,6 @@ fp.dev.IF <- ggplot(data=df.dev.IF, aes(x=label.dev.IF, y=hazard.dev.IF, ymin=lo
   theme_bw()  # use a white background
 print(fp.dev.IF)
 
-
-### forest plot for the urban single indicator variables (Full Model)
-### ------------------------------------------------------------
-
-
-### Alternative Labels
-label.urb.IF <- c("Population Den. (Cox)", "Population Den. (Mix)", "Artif. Surface (Cox)" , "Artif. Surface (Mix)",
-                  "Road Den. (Cox)", "Road Den. (Mix)", "Service Area (Cox)", "Service Area (Mix)")
-
-hazard.urb.IF  <- c(0.9936,0.9943,0.9890,0.9881,1.0151,1.0144,0.9935,0.9936) 
-lower.urb.IF <- c(0.9769,0.9760,0.9768,0.9747,1.0005,0.9988,0.9837,0.9830)
-upper.urb.IF <- c(1.0106, 1.0126,1.0013,1.0014,1.0299,1.0301,1.0033,1.004)
-col.urb.IF <- c("C","MC","C","MC","C","MC","C","MC")
-df.urb.IF <- data.frame(label.urb.IF, hazard.urb.IF, lower.urb.IF, upper.urb.IF,col.urb.IF)
-
-# reverses the factor level ordering for labels after coord_flip()
-df.urb.IF$label.urb.IF <- factor(df.urb.IF$label.urb.IF, levels=rev(df.urb.IF$label.urb.IF))
-
-
-fp.urb.IF <- ggplot(data=df.urb.IF, aes(x=label.urb.IF, y=hazard.urb.IF, ymin=lower.urb.IF, ymax=upper.urb.IF, color=col.urb.IF)) +
-  geom_pointrange() + 
-  geom_hline(yintercept=1, lty=2) +  # add a dotted line at x=1 after flip
-  coord_flip() +  # flip coordinates (puts labels on y axis)
-  xlab(" ") + ylab("Hazard Ratios (95% CI)") +
-  scale_color_brewer(palette="Dark2", name=" ")              +
-  theme_bw()   + # use a white background
-  theme(legend.position="none")
-print(fp.urb.IF)
-
-
-# theme(text = element_text(size=20),
-#        axis.text.x = element_text(angle=90, hjust=1)) 
-
-
 ############################################################################################################################
 ############################################################################################################################
 # 
@@ -439,3 +344,22 @@ print(fp.urb.IF)
 # 
 # ### Save as txt
 # write.table(FOR.MAP,file = "ForMap.txt",sep = ";",row.names=FALSE)
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+
+
+### box plot for median frailties for different models
+
+# saved frailty stats
+frail <- read.table("frail.txt", header = T, sep = ";")
+
+# boxplot
+
+frail.med <- frail %>% ggplot(aes(x=Model,y=log(frail))) +
+  geom_boxplot() +
+  xlab(" ") + ylab("Median frailties") +
+  theme_bw()
+
