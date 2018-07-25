@@ -210,15 +210,17 @@ INMO.SC %>% mutate(event = as.factor(ifelse(event==1,"dead","alive"))) %>% ggplo
   
   ### Change reference categories
 
-  # sex
-  INMO.SC <- within(INMO.SC, sexo <- relevel(sexo, ref = "female"))  
-  # Civil status
-  INMO.SC <- within(INMO.SC, ecivil <- relevel(ecivil, ref = "Married"))
-  # dependency variable
-  INMO.SC <- INMO.SC %>% mutate(dep = as.factor(ifelse(dependiente=="No","not dependent", "dependent")))
-  INMO.SC <- within(INMO.SC, dep <- relevel(dep, ref = "not dependent"))
-  # Housing ownership
-  INMO.SC <- within(INMO.SC, tenen <- relevel(tenen, ref = "Owns House/Apartment"))
+## 0.5 Change reference categories for individual variables
+# sex
+INMO.SC.2 <- within(INMO.SC.2, sexo <- relevel(sexo, ref = "female"))  
+# Civil status
+INMO.SC.2 <- within(INMO.SC.2, ecivil <- relevel(ecivil, ref = "Married"))
+# dependency variable
+INMO.SC.2 <- INMO.SC.2 %>% mutate(dep = as.factor(ifelse(dependiente=="No","not dependent", "dependent")))
+INMO.SC.2 <- within(INMO.SC.2, dep <- relevel(dep, ref = "not dependent"))
+# Housing ownership
+INMO.SC.2 <- within(INMO.SC.2, tenen <- relevel(tenen, ref = "Owns House/Apartment"))
+
   
   ##########################################################################################################################
   # Number of deaths by census tract (should be more than 1 for variability)
@@ -622,7 +624,7 @@ AIC(fit.4) - AIC(fit.3)
 ### Model 2 - Urbanicity effects (UI.N) + Environment effects (cleanness, air pollution, Noise)
   
 # Cox model
-  Mod.2 <- coxph(Surv(time = age.entry,
+  Cox.2 <- coxph(Surv(time = age.entry,
                       time2 = age.exit,
                       event = event) ~ UI.N + sexo + dep + ecivil + fnac + estudios4 + tenen + vehic, data = INMO.SC)
   
@@ -637,7 +639,7 @@ AIC(fit.4) - AIC(fit.3)
 ### Model 3 - Model 2 + Socio-cultural effects (delinquency, percentage_employed, Pct_Agriculture)
 
 # Cox model
-  Mod.3 <- coxph(Surv(time = age.entry,
+  Cox.3 <- coxph(Surv(time = age.entry,
                        time2 = age.exit,
                        event = event) ~ UI.N  + sexo + dep + ecivil +  fnac + estudios4 + tenen + vehic +
                                         IP_LIMPIEZA + IP_CONTAM + IP_RUIDOS, data = INMO.SC)
@@ -670,10 +672,10 @@ AIC(fit.4) - AIC(fit.3)
             #   
 ### Model 4 - Model 3 + Individual Level Effects
   
-  Mod.4 <- coxph(Surv(time = age.entry,
+  Cox.4 <- coxph(Surv(time = age.entry,
                       time2 = age.exit,
                       event = event) ~ UI.N  + sexo + dep + ecivil + fnac + estudios4 + tenen + vehic + 
-                                       IP_LIMPIEZA + IP_CONTAM + IP_RUIDOS + PCT_UNEMPL + PCT_SOLTEROS + IP_DELINC,
+                                       IP_LIMPIEZA + IP_CONTAM + IP_RUIDOS + PCT_UNEMPL + PCT_SOLTEROS,
                  data = INMO.SC)
   summary(Mod.4)  
   

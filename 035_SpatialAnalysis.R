@@ -1,16 +1,13 @@
 ### ----------------------------------------------------------------------------------------- ###
 ###                        Check for Spatial Autocorrelation                                  ###
 ### ----------------------------------------------------------------------------------------- ###
-<<<<<<< HEAD
+
 library(readxl)
 library(sp)
 library(rgdal)
 library(RColorBrewer)
 library("gridExtra")
 library("lattice")
-
-=======
->>>>>>> b7adca901c32dfedc82bf5bcf4e5f7f5dd84561a
 
 ### Load spatial data - shape file
 
@@ -54,13 +51,8 @@ SMRsc$SC <- as.character(as.factor(SMRsc$SC))
 table(nchar(SMRsc$SC))
 
 SPAT.SC <- SCCON %>% dplyr::select(SC, PERSONAS, MUNI, PCT_OCUPADOS, EDAD_MEDIA, PCT_AGRIC, ArtSurfA, Service.area.popacc, pop.den,
-<<<<<<< HEAD
                                    POPDEN.I.SD, ARTSURF.I.SD, ROADDEN.I.SD, SERAREA.I.SD, UI, UI.cat, UI.N, IP_DESEMPLEO, IP_CONTAM,
                                    IP_RUIDOS, PCT_SOLTEROS, IP_DELINC)
-=======
-                                   POPDEN.I.SD, ARTSURF.I.SD, ROADDEN.I.SD, SERAREA.I.SD, UI, UI.cat, UI.N, UI.logit,
-                                   DI, DI.N)
->>>>>>> b7adca901c32dfedc82bf5bcf4e5f7f5dd84561a
 
 table(nchar(SPAT.SC$SC))
 # known error! - add the zero to the "SC"
@@ -149,7 +141,6 @@ SEV.UI.plot <- spplot(SEV, "UI.N",col.regions=myCols, scales=list(draw = TRUE), 
 
 SEV.DI.plot <- spplot(SEV,"DI.N",col.regions=myCols, scales=list(draw = TRUE), colorkey=TRUE)
 
-<<<<<<< HEAD
 
 SEV.SMR.plot <- spplot(SEV,"SMRe",col.regions=myCols, scales=list(draw = TRUE), colorkey=TRUE)
 
@@ -159,12 +150,12 @@ SEV.SMR.plot <- spplot(SEV,"SMRe",col.regions=myCols, scales=list(draw = TRUE), 
 # P.SEV.DI.plot <- spplot(SEV.P,"DI.N")
 # P.SEV.SMR.plot <- spplot(SEV.P,"SMRe")
 
-=======
+
 # Provincia
 SEV.P <- subset(ANDALUS.SC, codmun %in% SEV.mun)
 P.SEV.UI.plot <- spplot(SEV.P, "UI.N")
 P.SEV.DI.plot <- spplot(SEV.P,"DI.N")
->>>>>>> b7adca901c32dfedc82bf5bcf4e5f7f5dd84561a
+
 
 ### Put both in one grid 
 grid.arrange(SEV.UI.plot, SEV.DI.plot, ncol=2, nrow=1)
@@ -183,14 +174,13 @@ grid.arrange(SEV.UI.plot, SEV.DI.plot, ncol=2, nrow=1)
 
 and.nb <- poly2nb(ANDALUS.SC)
 
-<<<<<<< HEAD
+
 ### Row-standardised weight matrix - increased the weights of links from observation with few neighbours
   # --- in this case the row sums of the weights are unity
 
-=======
 # row-standardised weight matrix - increased the weights of links from observation with few neighbours
 # --- in this case the row sums of the weights are unity
->>>>>>> b7adca901c32dfedc82bf5bcf4e5f7f5dd84561a
+
 and.lw <- nb2listw(and.nb, style = "W")    
 
 # add ", zero.policy=TRUE" in case of missing neighbours
@@ -209,7 +199,6 @@ ANDALUS.SC$SMRe <- as.numeric(ANDALUS.SC$SMRe)
 moran.test(ANDALUS.SC$SMRe, and.lw)                       ### highly spatially correlated: Moran I statistic = 0.380
 # Urbanicity indicator
 moran.test(ANDALUS.SC$UI.N, and.lw)                       ### highest spatial correllation: Moran I statistic = 0.784
-<<<<<<< HEAD
 # Noise
 moran.test(ANDALUS.SC$IP_RUIDOS, and.lw)                  ### high spatial correllation: Moran I statistic = 0.570***
 # Pollution
@@ -224,10 +213,10 @@ moran.test(ANDALUS.SC$IP_DELINC, and.lw)                  ### high spatial corre
 
     # Deprivation indicator
     # moran.test(ANDALUS.SC$DI.N, and.lw)                       ### highly spatially correlated: Moran I statistic = 0.685
-=======
+
 # Deprivation indicator
-moran.test(ANDALUS.SC$DI.N, and.lw)                       ### highly spatially correlated: Moran I statistic = 0.685
->>>>>>> b7adca901c32dfedc82bf5bcf4e5f7f5dd84561a
+moran.test(ANDALUS.SC$DI.N, and.lw)                             ### highly spatially correlated: Moran I statistic = 0.685
+
 
 
 ### --------------------------------------------------- ###    
