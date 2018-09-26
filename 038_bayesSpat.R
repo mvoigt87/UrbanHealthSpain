@@ -22,7 +22,7 @@ library("bamlss")
 # 0.2 working directory and load data set
 getwd()
 
-setwd("C:/Users/Mathias/Documents/LongPop_Madrid/PhD/SP3_urban health")
+# setwd("C:/Users/Mathias/Documents/LongPop_Madrid/PhD/SP3_urban health")
 
 load("data/025_INDMOR-CT.RData")
 
@@ -89,12 +89,46 @@ ANDALUS.SC <- readOGR(dsn="C:/Users/y4956294S/Documents/LONGPOP/Subproject 3 - U
 # adj.mat <- and.gra
 
             # E <- diag(diag(adj.mat)) - as.matrix(adj.mat)
+cox.1 <- coxph(Surv(age.exit,event) ~ sexo + ecivil + UI.N, data = INMO)      
+summary(cox.1)   
+      
+
+### Add the spatial part to the model
+### ----------------------------------
+
+# Coordinates for the centroids
+
+head(coordinates(ANDALUS.SC), 10)
+
+      # lat_long = CRS("+init=epsg:4326") 
+      # ANDALUS.SC_lat_long <- spTransform(ANDALUS.SC, lat_long)
+proj4string(ANDALUS.SC) # Does not know if they are longitude/latitude information
+
+proj4string(ANDALUS.SC) <- CRS("+proj=tmerc +lat_0=0 +lon_0=9 +k=1 +x_0=3500000 +y_0=0 +datum=potsdam +units=m +no_defs")
+
+# extract the information as a dataframe
+d <- ANDALUS.SC@data
+# check the census section in the ind. data
+
+# transform to L/L information
+ANDALUS.LL <- as.data.frame(cbind(coordinates(spTransform(ANDALUS.SC, CRS("+proj=longlat +datum=WGS84")))))
+ANDALUS.LL <- cbind(d$codigo01, ANDALUS.LL)
+names(ANDALUS.LL) <- c("SC", "LONG", "LAT")
+                              
+INMO$SC[nchar(INMO$SC)==9] <- paste0("0", INMO$SC[nchar(INMO$SC)==9]) 
+  # add the zeros for the matching
+
+sum(ANDALUS.LL$SC %in% unique(INMO$SC)) # all census sections are the same
+
+# Add the spatial information to the individual level data
+
+INMO <- INMO %>% left_join(ANDALUS.LL, by="SC")
 
 
 
-### Trying Bamlss
-####################################################################################################
-# function temperature in dependence on time with spline
+    ### Trying Bamlss
+    ####################################################################################################
+    # function temperature in dependence on time with spline
     
     # Example
     # -------
@@ -103,26 +137,33 @@ ANDALUS.SC <- readOGR(dsn="C:/Users/y4956294S/Documents/LONGPOP/Subproject 3 - U
     #      gamma ~ s(fsintens) + ti(daytime,bs="cc") + ti(lon,lat) +
     #            ti(daytime,lon,lat,bs=c("cc","cr"),d=c(1,2))
     #   )
-###################################################################################################
+    ###################################################################################################
 
-cox.1 <- coxph(Surv(age.exit,event) ~ sexo, data = INMO)      
-      
-      
+
 # Drawing a sample for further tests
-      
-d.2 <- INMO[sample(nrow(INMO), 5000), ]
+# ----------------------------------
 
-d.2 <- d.2 %>% mutate(exit = ifelse(event==1,age.exit,0))
+# d.2 <- INMO[sample(nrow(INMO), 5000), ]
+d.2 <- INMO[sample(nrow(INMO.SC), 5000), ]
 
+# Second test with just the ones who died
 
+d.3 <- subset(INMO,event==1)
 
+d.3.b <- d.3[sample(nrow(d.3), 5000),]
 
-#### --------- 
-#### Formulars
-#### --------- 
+#### -------------------------------------
+#### Formulars for the bamlss lego bricks
+#### -------------------------------------
+
+  # https://cran.r-project.org/web/packages/bamlss/bamlss.pdf
+
+  # https://www.tandfonline.com/doi/full/10.1080/10618600.2017.1407325 
+
+#### ----------------------------------------------------------------------
 
 # simple formula
-f <- list(Surv(age.exit,event) ~ ti(age.exit), gamma ~ s(UI.N) + sexo)
+f <- list(Surv(age.exit,event) ~ ti(age.exit) + ti(age.exit,LONG,LAT), gamma ~ s(UI.N) + ti(LONG,LAT))
 
 # + UI.N + s(SC,bs="mrf",xt=list(penalty=adj.mat))
 
@@ -130,8 +171,8 @@ f <- list(Surv(age.exit,event) ~ ti(age.exit), gamma ~ s(UI.N) + sexo)
 # Formula of the survival model, note
 ## that the baseline is given in the first formula by s(time).
 f.2 <- list(
-  Surv(age.exit,event) ~ s(age.exit)+ s(age.exit, by = UI.N),
-  gamma ~ sexo + ecivil + s(DI.N)
+  Surv(age.exit,event) ~ ti(age.exit)+ ti(age.exit,LONG,LAT),
+  gamma ~ ti(LONG,LAT) + sexo + ecivil + s(DI.N)
 )
 
 
@@ -141,39 +182,66 @@ f.3 <- list(Surv(age.exit,event) ~ ti(age.exit) + ti(UI.N),
             gamma ~ sexo + ecivil + s(DI.N) + s(SC,xt=list(penalty=and.nb)))
 
 
+#### Just with the death ones
+
+f.d.1 <- list(Surv(age.exit) ~ ti(age.exit) + ti(age.exit,LONG,LAT), gamma ~ s(UI.N))
+
+
 ######## Run Model(s)
 
 # Test with 5000 individuals
 # ---------------------------
-bayes.test <- bamlss(f, data = d.2, family="cox", optimizer = FALSE)
+bayes.test <- bamlss(f, data = d.2, family="cox", optimizer = FALSE, subdivisions = 50, n.iter = 10000, 
+                     burnin = 1000, thin = 10, maxit = 1000)
 
 summary(bayes.test)
 plot(bayes.test)
 
+plot(bayes.test, model = "lambda", term = "ti(age.exit)")
+
+# Second test with more variables
 bayes.test.2 <- bamlss(f.2, data = d.2, family="cox", optimizer = FALSE)
 
 summary(bayes.test.2)
 plot(bayes.test.2)
 plot(bayes.test.2, which="samples")
 
-plot(bayes.test.2, model = "lambda", term = "s(age.exit)")
+plot(bayes.test.2, model = "lambda", term = "ti(age.exit)")
 
+
+# And a test with only the dead individuals
+
+bd <- bamlss(f.d.1, data = d.3, family="cox", optimizer = FALSE)
+
+summary(bd)
+plot(bd)
 
 # a little different approach
 ##############################
 ##############################
 
     ## Create the bamlss.frame.
-    bayes.test.2 <- bamlss.frame(f.2, family = "cox", data = d.2)
-    bayes.test.2 <- with(bayes.test.2, surv.transform(x, y, data = model.frame,
+
+    ## that the baseline is given in the first formula by s(time).
+    f <- list(
+      Surv(age.exit, event) ~ s(age.exit),                    #  for time varying vars add: + s(time, by = x3)
+      gamma ~ s(UI.N) + s(DI.N) + sexo
+      )
+  
+    bayes.test.2 <- bamlss.frame(f, family = "cox", data = d.2)
+    print(bayes.test.2)
+
+    bayes.cox.2 <- with(bayes.test.2, surv.transform(x, y, data = model.frame,
                          family = family, is.cox = TRUE, subdivisions = 25))
     
+    summary(bayes.cox.2)
+    
     ## Extract the time grid design matrix for term s(time).
-    X <- bayes.test.2$x$lambda$smooth.construct[["s(age.exit)"]]$fit.fun_timegrid(NULL)
+    X <- bayes.cox.2$x$lambda$smooth.construct[["s(age.exit)"]]$fit.fun_timegrid(NULL)
     dim(X)
     
     ## Compute fitted values for each time point.
-    grid <- attr(bayes.test.2$y[[1]], "grid")
+    grid <- attr(bayes.cox.2$y[[1]], "grid")
     gdim <- c(length(grid), length(grid[[1]]))
     b <- runif(ncol(X))
     fit <- X 
