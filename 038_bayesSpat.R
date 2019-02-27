@@ -18,7 +18,6 @@ library(BayesX)
 require(spdep)
 library("bamlss")
 
-
 # 0.2 working directory and load data set
 getwd()
 
@@ -129,14 +128,26 @@ INMO <- INMO %>% left_join(ANDALUS.LL, by="SC")
     ### Trying Bamlss
     ####################################################################################################
     # function temperature in dependence on time with spline
-    
+    #
+    # LONDON FIRE BRIGADE EXAMPLE
+    data("LondonFire", package = "bamlss")
+
+      plot(LondonFire, col = "red")
+      plot(LondonFStations, col = "blue", add = TRUE)
+      plot(LondonBoroughs, add = TRUE)
     # Example
     # -------
-    # f <- list(
-    #      Surv(arrivaltime) ~ ti(arrivaltime) + ti(arrivaltime,lon,lat),
-    #      gamma ~ s(fsintens) + ti(daytime,bs="cc") + ti(lon,lat) +
-    #            ti(daytime,lon,lat,bs=c("cc","cr"),d=c(1,2))
-    #   )
+    f <- list(
+         Surv(arrivaltime) ~ ti(arrivaltime) + ti(arrivaltime,lon,lat),
+         gamma ~ s(fsintens) + ti(daytime,bs="cc") + ti(lon,lat) +
+               ti(daytime,lon,lat,bs=c("cc","cr"),d=c(1,2))
+      )
+
+    firemodel <- bamlss(f, data = LondonFire, family = "cox",
+                          subdivisions = 100, n.iter = 12000, burnin = 2000,
+                          thin = 10, cores = 8, maxit = 1000)
+    summary(firemodel)
+      
     ###################################################################################################
 
 
